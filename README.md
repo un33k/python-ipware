@@ -254,4 +254,4 @@ X.Y.Z Version
 
 # Need Support?
 
-[Neekware Inc.](http://neekware.com)
+[Neekware Inc.](http://neekware.com) (reach out at info@neekware.com)
