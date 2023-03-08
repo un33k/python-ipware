@@ -242,9 +242,9 @@ X.Y.Z Version
 [status-image]: https://github.com/un33k/python-ipware/actions/workflows/ci.yml/badge.svg
 [status-link]: https://github.com/un33k/python-ipware/actions/workflows/ci.yml
 [version-image]: https://img.shields.io/pypi/v/python-ipware.svg
-[version-link]: https://pypi.python.org/pypi/python-ipware
-[coverage-image]: https://coveralls.io/repos/github/un33k/python-ipware/badge.svg
-[coverage-link]: https://coveralls.io/github/un33k/python-ipware
+[version-link]: https://pypi.python.org/pypi/python-ipware?branch=main
+[coverage-image]: https://coveralls.io/repos/github/un33k/python-ipware/badge.svg?branch=main
+[coverage-link]: https://coveralls.io/github/un33k/python-ipware?branch=main
 [download-image]: https://img.shields.io/pypi/dm/python-ipware.svg
 [download-link]: https://pypi.python.org/pypi/python-ipware
 
