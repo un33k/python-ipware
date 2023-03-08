@@ -199,7 +199,7 @@ In the following `example`, your public load balancer (LB) can be seen as the `o
                                 `Fake` Client  <private> ---+
 ```
 
-### Public IP Address ONLY (routable on the internet)
+### Support for Public IP Address (routable on the internet), Private and Loopback
 
 ```python
 # We make best attempt to return the first public IP address based on header precedence
@@ -219,13 +219,22 @@ else if ip.loopback:
     print('Loopback IP')
 ```
 
+### Support for IPv4, Ipv6, and IP:Port patterns
+
+```text
+- Ports will be automatically stripped off, and the IP addresses will be processed and returned.
+- IPv4s that are wrapped in IPv6 containers will be also unwrapped, processed and returned
+```
+
 ### Originating Request
 
+```test
 Please note that the [de-facto](https:#developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For) standard
 for the originating client IP address is the `leftmost`as per`client, proxy1, proxy2`, and the `rightmost` proxy is the most
 trusted proxy.
 
 However, in rare cases your network has a `custom` configuration where the `rightmost` IP address is that of the originating client. If that is the case, then indicate it when creating `IpWare(leftmost=False)`.
+```
 
 # Running the tests
 
