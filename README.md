@@ -251,3 +251,7 @@ X.Y.Z Version
 # Sponsors
 
 [Neekware Inc.](http://neekware.com)
+
+# Need Support?
+
+[Neekware Inc.](http://neekware.com)
