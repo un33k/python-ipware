@@ -133,7 +133,7 @@ class TestIPv6ProxyList(unittest.TestCase):
 
     def setUp(self):
         self.ipware = IpWare(
-            proxy_trusted_list=["2606:4700:4700::1111", "2001:4860:4860::8888"]
+            proxy_list=["2606:4700:4700::1111", "2001:4860:4860::8888"]
         )
 
     def tearDown(self):

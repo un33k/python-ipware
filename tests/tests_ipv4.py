@@ -209,7 +209,7 @@ class TestIPv4ProxyList(unittest.TestCase):
     """IPv4 Proxy List Test"""
 
     def setUp(self):
-        self.ipware = IpWare(proxy_trusted_list=["198.84.193.157", "198.84.193.158"])
+        self.ipware = IpWare(proxy_list=["198.84.193.157", "198.84.193.158"])
 
     def tearDown(self):
         self.ipware = None
@@ -241,7 +241,7 @@ class TestIPv4ProxyCountProxyList(unittest.TestCase):
 
     def setUp(self):
         self.ipware = IpWare(
-            proxy_count=2, proxy_trusted_list=["198.84.193.157", "198.84.193.158"]
+            proxy_count=2, proxy_list=["198.84.193.157", "198.84.193.158"]
         )
 
     def tearDown(self):

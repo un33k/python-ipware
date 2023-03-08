@@ -139,28 +139,26 @@ class IpWareProxy:
     def __init__(
         self,
         proxy_count: Optional[int] = 0,
-        proxy_trusted_list: Optional[List[str]] = None,
+        proxy_list: Optional[List[str]] = None,
     ) -> None:
         if proxy_count < 0 or proxy_count is None:
             raise ValueError("proxy_count must be a positive integer")
 
         self.proxy_count = proxy_count
-        self.proxy_trusted_list = self._is_valid_proxy_trusted_list(
-            proxy_trusted_list or []
-        )
+        self.proxy_list = self._is_valid_proxy_trusted_list(proxy_list or [])
 
-    def _is_valid_proxy_trusted_list(self, proxy_trusted_list: Any) -> List[str]:
+    def _is_valid_proxy_trusted_list(self, proxy_list: Any) -> List[str]:
         """
         Checks if the proxy list is a valid list of strings
         @return: proxy list or raises an exception
         """
 
-        if not isinstance(proxy_trusted_list, list):
+        if not isinstance(proxy_list, list):
             raise ValueError("Parameter must be a list")
-        if not all(isinstance(x, str) for x in proxy_trusted_list):
+        if not all(isinstance(x, str) for x in proxy_list):
             raise ValueError("All elements in list must be strings")
 
-        return proxy_trusted_list
+        return proxy_list
 
     def is_proxy_count_valid(self, ip_list: List[str], strict: bool = False) -> bool:
         """
@@ -190,16 +188,16 @@ class IpWareProxy:
         strict: bool = False,
     ) -> bool:
         """
-        Checks if the proxy list is valid (all proxies are in the proxy_trusted_list)
+        Checks if the proxy list is valid (all proxies are in the proxy_list)
         @param ip_list: list of ip addresses
         @param strict: if True, we must have exactly proxy_count proxies
         @return: client's best match ip address or False
         """
-        if not self.proxy_trusted_list:
+        if not self.proxy_list:
             return True
 
         ip_count = len(ip_list)
-        proxy_list_count = len(self.proxy_trusted_list)
+        proxy_list_count = len(self.proxy_list)
 
         # in strict mode, total ip count must be 1 more than proxy count
         if strict and ip_count - 1 != proxy_list_count:
@@ -212,7 +210,7 @@ class IpWareProxy:
         # start from the end, slice the incoming ip list to the same length as the trusted proxy list
         ip_list_slice = ip_list[-proxy_list_count:]
         for index, value in enumerate(ip_list_slice):
-            if not str(value).startswith(self.proxy_trusted_list[index]):
+            if not str(value).startswith(self.proxy_list[index]):
                 return False
 
         # now all we need is to return the first ip in the list that is not in the trusted proxy list
@@ -232,10 +230,10 @@ class IpWare(IpWareMeta, IpWareProxy, IpWareIpAddress):
         precedence: Tuple[str, ...] = None,
         leftmost: bool = True,
         proxy_count: int = 0,
-        proxy_trusted_list: List[str] = None,
+        proxy_list: List[str] = None,
     ) -> None:
         IpWareMeta.__init__(self, precedence, leftmost)
-        IpWareProxy.__init__(self, proxy_count or 0, proxy_trusted_list or [])
+        IpWareProxy.__init__(self, proxy_count or 0, proxy_list or [])
 
     def get_meta_value(self, meta: Dict[str, str], key: str) -> str:
         """
@@ -325,8 +323,8 @@ class IpWare(IpWareMeta, IpWareProxy, IpWareIpAddress):
             return None, False
 
         # the incoming ips match our trusted proxy list
-        if len(self.proxy_trusted_list) > 0 and proxy_list_validated:
-            best_client_ip_index = len(self.proxy_trusted_list) + 1
+        if len(self.proxy_list) > 0 and proxy_list_validated:
+            best_client_ip_index = len(self.proxy_list) + 1
             best_client_ip = ip_list[-best_client_ip_index]
             return best_client_ip, True
 

@@ -14,7 +14,7 @@
 
 There is no perfect `out-of-the-box` solution against fake IP addresses, aka `IP Address Spoofing`.
 You are encouraged to read the ([Advanced users](README.md#advanced-users)) section of this page and
-use `proxy_trusted_list` and/or `proxy_count` features to match your needs, especially `if` you are
+use `proxy_list` and/or `proxy_count` features to match your needs, especially `if` you are
 planning to include `ipware` in any authentication, security or `anti-fraud` related architecture.
 
 This is an open source project, with the source code visible to all. Therefore, it may be exploited through unimplemented, or improperly implemented features.
@@ -55,16 +55,16 @@ if ip: # IPv4Address() or IPv6Address() object
 
 # Advanced users:
 
-|        Flags ⇩ | ⇩ Description                                                                                                                                                                                                                                                                                                                                                     |
-| -------------: | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-|      `count` ⇨ | : Total number of expected proxies (pattern: `client, proxy1, ..., proxy2`)<br>: if `count = 0` then `client`<br>: if `count = 1` then `client, proxy1`<br>: if `count = 2` then `client, proxy1, proxy2` <br>: if `count = 3` then `client, proxy1, proxy2 proxy3`                                                                                               |
-| `proxy_list` ⇨ | : List of trusted proxies (pattern: `client, proxy1, ..., proxy2`)<br>: if `proxy_list = ['10.1.']` then `client, 10.1.1.1` OR `client, proxy1, 10.1.1.1`<br>: if `proxy_list = ['10.1', '10.2.']` then `client, 10.1.1.1` OR `client, proxy1, 10.2.2.2`<br>: if `proxy_list = ['10.1', '10.2.']` then `client, 10.1.1.1 10.2.2.2` OR `client, 10.1.1.1 10.2.2.2` |
-| `publicOnly` ⇨ | : Returns only public and internet routable IP or null                                                                                                                                                                                                                                                                                                            |
+|        Params ⇩ | ⇩ Description                                                                                                                                                                                                                                                                                                                                                     |
+| --------------: | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `proxy_count` ⇨ | : Total number of expected proxies (pattern: `client, proxy1, ..., proxy2`)<br>: if `proxy_count = 0` then `client`<br>: if `proxy_count = 1` then `client, proxy1`<br>: if `proxy_count = 2` then `client, proxy1, proxy2` <br>: if `proxy_count = 3` then `client, proxy1, proxy2 proxy3`                                                                       |
+|  `proxy_list` ⇨ | : List of trusted proxies (pattern: `client, proxy1, ..., proxy2`)<br>: if `proxy_list = ['10.1.']` then `client, 10.1.1.1` OR `client, proxy1, 10.1.1.1`<br>: if `proxy_list = ['10.1', '10.2.']` then `client, 10.1.1.1` OR `client, proxy1, 10.2.2.2`<br>: if `proxy_list = ['10.1', '10.2.']` then `client, 10.1.1.1 10.2.2.2` OR `client, 10.1.1.1 10.2.2.2` |
+|    `leftmost` ⇨ | : `leftmost = True` is default for de-facto standard.<br>: `leftmost = False` for rare legacy networks that are configured with the `rightmost` pattern.<br>: It converts `client, proxy1 proxy2` to `proxy2, proxy1, client`                                                                                                                                     |
 
-|     Output Field ⇩ | ⇩ Description                                                                     |
-| -----------------: | :-------------------------------------------------------------------------------- |
-|             `ip` ⇨ | : Client IP address object of type IPv4Address() or IPv6Address()                 |
-| `isRouteTrusted` ⇨ | : If proxy `count` and/or `proxy_list` provided and matched, `true`, else `false` |
+|          Output ⇩ | ⇩ Description                                                                                |
+| ----------------: | :------------------------------------------------------------------------------------------- |
+|            `ip` ⇨ | : Client IP address object of type IPv4Address() or IPv6Address()                            |
+| `trusted_route` ⇨ | : If proxy `proxy_count` and/or `proxy_list` were provided and matched, `True`, else `False` |
 
 ### Precedence Order
 
@@ -72,6 +72,11 @@ The client IP address can be found in one or more request headers attributes. Th
 
 ```python
 # The default meta precedence order - you can be more specific as per your configuration
+# It will start looking through the request headers from top to bottom to find the best match
+# It will return the first qualified global (public) ip address it finds, else
+# It will return the first qualified private ip address it finds, else
+# It will return the first qualified loopback up address it finds, else it returns None
+# Update as per your network topology, reduce the numbers and/or reorder the list
 request_headers_precedence_order = (
   "X_FORWARDED_FOR", # Load balancers or proxies such as AWS ELB (default client is `leftmost` [`<client>, <proxy1>, <proxy2>`])
   "HTTP_X_FORWARDED_FOR", # Similar to X_FORWARDED_TO
@@ -121,19 +126,19 @@ ip, proxy_verified = ipware.get_client_ip(meta=request.environ)
 If your node server is behind one or more known proxy server(s), you can filter out unwanted requests
 by providing a `trusted proxy list`, or a known proxy `count`.
 
-You can customize the proxy IP prefixes by providing your own list during initialization when calling `IpWare(proxy_trusted_list)`.
+You can customize the proxy IP prefixes by providing your own list during initialization when calling `IpWare(proxy_list)`.
 You can pass your custom list on every call, when calling the proxy-aware api to fetch the ip.
 
 ```python
 # In the above scenario, use your load balancer IP address as a way to filter out unwanted requests.
-ipware = IpWare(proxy_trusted_list=["198.84.193.157"])
+ipware = IpWare(proxy_list=["198.84.193.157"])
 
 
 # If you have multiple proxies, simply add them to the list
-ipware = IpWare(proxy_trusted_list=["198.84.193.157", "198.84.193.158"])
+ipware = IpWare(proxy_list=["198.84.193.157", "198.84.193.158"])
 
 # For proxy servers with fixed sub-domain and dynamic IP, use the following pattern.
-ipware = IpWare(proxy_trusted_list=["177.139.", "177.140"])
+ipware = IpWare(proxy_list=["177.139.", "177.140"])
 
 # usage: non-strict mode (X-Forwarded-For: <fake>, <client>, <proxy1>, <proxy2>)
 # The request went through our <proxy1> and <proxy2>, then our server
@@ -171,7 +176,7 @@ import ipware
 ipware = IpWare(proxy_count=1)
 
 # enforce proxy count and trusted proxies
-ipware = IpWare(proxy_count=1, proxy_trusted_list=["198.84.193.157"])
+ipware = IpWare(proxy_count=1, proxy_list=["198.84.193.157"])
 
 
 # usage: non-strict mode (X-Forwarded-For: <fake>, <client>, <proxy1>, <proxy2>)
