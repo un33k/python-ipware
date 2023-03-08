@@ -1,0 +1,42 @@
+# https://devguide.python.org/versions
+name: ci
+
+on:
+  push:
+    branches:
+      - ci
+      - dev
+      - master
+  pull_request:
+    branches:
+      - ci
+      - dev
+      - master
+
+jobs:
+  ci:
+    name: Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.7, 3.8, 3.9, "3.10", 3.11, pypy3.9]
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: setup python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install --upgrade coveralls ruff
+      - name: Run ruff
+        run: ruff --format=github .
+      - name: Run test
+        run: coverage run --source=ipware -m unittest discover
+      - name: Coveralls
+        run: coveralls --service=github
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
