@@ -241,6 +241,7 @@ class IpWare(IpWareMeta, IpWareProxy, IpWareIpAddress):
         @param key: the key to lookup
         @return: the value of the key or empty string
         """
+        meta = meta or {}
         return meta.get(key, meta.get(key.replace("_", "-"), "")).strip()
 
     def get_meta_values(self, meta: Dict[str, str]) -> List[str]:

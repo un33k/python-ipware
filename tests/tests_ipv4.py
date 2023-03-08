@@ -15,6 +15,12 @@ class TestIPv4Common(unittest.TestCase):
     def tearDown(self):
         self.ipware = None
 
+    def test_meta_none(self):
+        meta = None
+        ip, trusted = self.ipware.get_client_ip(meta)
+        self.assertIsNone(ip)
+        self.assertFalse(trusted)
+
     def test_meta_empty(self):
         meta = {}
         ip, trusted = self.ipware.get_client_ip(meta)
