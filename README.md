@@ -39,13 +39,14 @@ Please use ipware `ONLY` as a complement to your `firewall` security measures!
 # In a view or a middleware where the `request` object is available
 import ipware
 ipware = Ipware() # default values
-ip, proxy_verified = ipware.get_client_ip(meta)
+meta = request.META # Django (meta = request.META), Flask (meta = request.environ), etc
+ip, trusted_route = ipware.get_client_ip(meta)
 if ip: # IPv4Address() or IPv6Address() object
     # ip object has the following properties
     # ip.is_global (is globally routable)
     # ip.is_private (is private ip address)
     # is_loopback (is loopback address)
-# proxy_verified tells if request came through proxies (count / trusted)
+# trusted_route tells if request came through our proxies (count / trusted)
 
 # do something with the ip address (e.g. pass it down through the request)
 # note: ip address doesn't change often, so better cache it for performance,
