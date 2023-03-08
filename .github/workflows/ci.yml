@@ -6,12 +6,12 @@ on:
     branches:
       - ci
       - dev
-      - master
+      - main
   pull_request:
     branches:
       - ci
       - dev
-      - master
+      - main
 
 jobs:
   ci:
