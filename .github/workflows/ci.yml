@@ -7,6 +7,8 @@ on:
       - ci
       - dev
       - main
+    tags:
+      - "v*"
   pull_request:
     branches:
       - ci
@@ -27,11 +29,11 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
+          cache: "pip"
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e .
-          pip install --upgrade coveralls ruff
+          pip install -e .[dev]
       - name: Run ruff
         run: ruff --format=github .
       - name: Run test
@@ -40,3 +42,49 @@ jobs:
         run: coveralls --service=github
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+      -
+        name: Install build tools
+        run: |
+          pip3 --quiet install --upgrade build wheel
+      -
+        name: Build
+        run: |
+          python3 -m build .
+      -
+        uses: actions/upload-artifact@v3
+        with:
+            name: artifacts
+            path: dist/*
+            if-no-files-found: error
+            retention-days: 7
+
+  pypi-publish:
+    name: Publish
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      id-token: write  # IMPORTANT: this permission is mandatory for trusted publishing
+    needs:
+      - build
+      - ci
+    steps:
+      -
+        uses: actions/download-artifact@v3
+        with:
+          name: artifacts
+          path: dist
+      -
+        name: Publish build to PyPI
+        uses: pypa/gh-action-pypi-publish@v1.8.10
