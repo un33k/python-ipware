@@ -3,6 +3,9 @@ import logging
 
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+IpAddressType = Union[ipaddress.IPv4Address, ipaddress.IPv6Address]
+OptionalIpAddressType = Optional[IpAddressType]
+
 
 class IpWareMeta:
     """
@@ -11,7 +14,7 @@ class IpWareMeta:
 
     def __init__(
         self,
-        precedence: Tuple[str, ...] = None,
+        precedence: Optional[Tuple[str, ...]] = None,
         leftmost: bool = True,
     ) -> None:
         self.precedence = precedence or (
@@ -81,14 +84,14 @@ class IpWareIpAddress:
     def get_ip_object(
         self,
         ip_str: str,
-    ) -> Optional[Union[ipaddress.IPv4Address, ipaddress.IPv6Address]]:
+    ) -> OptionalIpAddressType:
         """
         Given an IP address or address:port, it parses the IP address
         @param ip_str: IP address or address:port
         @return: IP address of type IPv4Address or IPv6Address
         """
 
-        ip = None
+        ip: OptionalIpAddressType = None
         if ip_str:
             try:
                 # try to parse as IPv6 address with optional port
@@ -109,13 +112,13 @@ class IpWareIpAddress:
     def get_ips_from_string(
         self,
         ip_str: str,
-    ) -> Optional[List[Union[ipaddress.IPv4Address, ipaddress.IPv6Address]]]:
+    ) -> Optional[List[IpAddressType]]:
         """
         Given a comma separated list of IP addresses or address:port, it parses the IP addresses
         @param ip_str: comma separated list of IP addresses or address:port
         @return: list of IP addresses of type IPv4Address or IPv6Address
         """
-        ip_list: List[Union[ipaddress.IPv4Address, ipaddress.IPv6Address]] = []
+        ip_list: List[IpAddressType] = []
 
         for ip_address in ip_str.split(","):
             ip = self.get_ip_object(ip_address.strip())
@@ -138,10 +141,10 @@ class IpWareProxy:
 
     def __init__(
         self,
-        proxy_count: Optional[int] = 0,
+        proxy_count: int = 0,
         proxy_list: Optional[List[str]] = None,
     ) -> None:
-        if proxy_count < 0 or proxy_count is None:
+        if proxy_count is None or proxy_count < 0:
             raise ValueError("proxy_count must be a positive integer")
 
         self.proxy_count = proxy_count
@@ -160,7 +163,9 @@ class IpWareProxy:
 
         return proxy_list
 
-    def is_proxy_count_valid(self, ip_list: List[str], strict: bool = False) -> bool:
+    def is_proxy_count_valid(
+        self, ip_list: List[IpAddressType], strict: bool = False
+    ) -> bool:
         """
         Checks if the proxy count is valid
         @param ip_list: list of ip addresses
@@ -184,7 +189,7 @@ class IpWareProxy:
 
     def is_proxy_trusted_list_valid(
         self,
-        ip_list: List[Union[ipaddress.IPv4Address, ipaddress.IPv6Address]],
+        ip_list: List[IpAddressType],
         strict: bool = False,
     ) -> bool:
         """
@@ -227,10 +232,10 @@ class IpWare(IpWareMeta, IpWareProxy, IpWareIpAddress):
 
     def __init__(
         self,
-        precedence: Tuple[str, ...] = None,
+        precedence: Optional[Tuple[str, ...]] = None,
         leftmost: bool = True,
         proxy_count: int = 0,
-        proxy_list: List[str] = None,
+        proxy_list: Optional[List[str]] = None,
     ) -> None:
         IpWareMeta.__init__(self, precedence, leftmost)
         IpWareProxy.__init__(self, proxy_count or 0, proxy_list or [])
@@ -255,14 +260,13 @@ class IpWare(IpWareMeta, IpWareProxy, IpWareIpAddress):
         self,
         meta: Dict[str, str],
         strict: bool = False,
-    ) -> Tuple[Union[ipaddress.IPv4Address, ipaddress.IPv6Address], bool]:
-
+    ) -> Tuple[OptionalIpAddressType, bool]:
         """
         Returns the client's IP address.
         """
 
-        loopback_list: List[Union[ipaddress.IPv4Address, ipaddress.IPv6Address]] = []
-        private_list: List[Union[ipaddress.IPv4Address, ipaddress.IPv6Address]] = []
+        loopback_list: List[IpAddressType] = []
+        private_list: List[OptionalIpAddressType] = []
 
         for ip_str in self.get_meta_values(meta):
             if not ip_str:
@@ -285,11 +289,11 @@ class IpWare(IpWareMeta, IpWareProxy, IpWareIpAddress):
             )
 
             # we found a global ip, return it
-            if client_ip.is_global:
+            if client_ip is not None and client_ip.is_global:
                 return client_ip, trusted_route
 
             # we found a private ip, save it
-            if client_ip.is_loopback:
+            if client_ip is not None and client_ip.is_loopback:
                 loopback_list.append(client_ip)
             else:
                 # if not global (public) or loopback (local), we treat it asd private
@@ -311,10 +315,10 @@ class IpWare(IpWareMeta, IpWareProxy, IpWareIpAddress):
 
     def get_best_ip(
         self,
-        ip_list: List[Union[ipaddress.IPv4Address, ipaddress.IPv6Address]],
+        ip_list: List[IpAddressType],
         proxy_count_validated: bool = True,
         proxy_list_validated: bool = True,
-    ) -> Tuple[Union[ipaddress.IPv4Address, ipaddress.IPv6Address], bool]:
+    ) -> Tuple[OptionalIpAddressType, bool]:
         """
         Returns the best possible ip for the client.
         """
