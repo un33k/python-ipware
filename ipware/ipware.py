@@ -27,6 +27,7 @@ class IpWareMeta:
             "HTTP_FORWARDED_FOR",  # RFC 7239
             "HTTP_FORWARDED",  # RFC 7239
             "HTTP_VIA",  # Squid and others
+            "X-CLIENT-IP",  # Microsoft Azure
             "X-REAL-IP",  # NGINX
             "X-CLUSTER-CLIENT-IP",  # Rackspace Cloud Load Balancers
             "X_FORWARDED",  # Squid

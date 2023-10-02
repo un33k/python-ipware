@@ -59,7 +59,7 @@ if ip: # IPv4Address() or IPv6Address() object
 |        Params ⇩ | ⇩ Description                                                                                                                                                                                                                                                                                                                                                     |
 | --------------: | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `proxy_count` ⇨ | : Total number of expected proxies (pattern: `client, proxy1, ..., proxy2`)<br>: if `proxy_count = 0` then `client`<br>: if `proxy_count = 1` then `client, proxy1`<br>: if `proxy_count = 2` then `client, proxy1, proxy2` <br>: if `proxy_count = 3` then `client, proxy1, proxy2 proxy3`                                                                       |
-|  `proxy_list` ⇨ | : List of trusted proxies (pattern: `client, proxy1, ..., proxy2`)<br>: if `proxy_list = ['10.1.']` then `client, 10.1.1.1` OR `client, proxy1, 10.1.1.1`<br>: if `proxy_list = ['10.1', '10.2.']` then `client, 10.1.1.1` OR `client, proxy1, 10.2.2.2`<br>: if `proxy_list = ['10.1', '10.2.']` then `client, 10.1.1.1 10.2.2.2` OR `client, 10.1.1.1 10.2.2.2` |
+|  `proxy_list` ⇨ | : List of trusted proxies (ip header pattern: `client, proxy1, ,..., proxyN`)<br>: if `proxy_list = ['10.1.']` then `client, proxy1`<br>: if `proxy_list = ['10.1', '10.2.3']` then `client, proxy1 proxy2`<br>: if `proxy_list = ['10.1', '10.2.', '10.3.4.4']` then `client, proxy1, proxy2, proxy3` |
 |    `leftmost` ⇨ | : `leftmost = True` is default for de-facto standard.<br>: `leftmost = False` for rare legacy networks that are configured with the `rightmost` pattern.<br>: It converts `client, proxy1 proxy2` to `proxy2, proxy1, client`                                                                                                                                     |
 
 |          Output ⇩ | ⇩ Description                                                                                |
@@ -79,23 +79,26 @@ The client IP address can be found in one or more request headers attributes. Th
 # It will return the first qualified loopback up address it finds, else it returns None
 # Update as per your network topology, reduce the numbers and/or reorder the list
 request_headers_precedence_order = (
-  "X_FORWARDED_FOR", # Load balancers or proxies such as AWS ELB (default client is `leftmost` [`<client>, <proxy1>, <proxy2>`])
-  "HTTP_X_FORWARDED_FOR", # Similar to X_FORWARDED_TO
-  "HTTP_CLIENT_IP", # Standard headers used by providers such as Amazon EC2, Heroku etc.
-  "HTTP_X_REAL_IP",
-  "HTTP_X_FORWARDED",
-  "HTTP_X_CLUSTER_CLIENT_IP",
-  "HTTP_FORWARDED_FOR",
-  "HTTP_FORWARDED",
-  "HTTP_VIA",
-  "X-REAL-IP", # NGINX
-  "X-CLUSTER-CLIENT-IP", # Rackspace Cloud Load Balancers
-  "X_FORWARDED",
-  "FORWARDED_FOR",
-  "CF-CONNECTING-IP", # CloudFlare
-  "TRUE-CLIENT-IP", # CloudFlare Enterprise,
-  "FASTLY-CLIENT-IP", # Firebase, Fastly
-  "FORWARDED",
+    "X_FORWARDED_FOR",  # Load balancers or proxies such as AWS ELB (default client is `left-most` [`<client>, <proxy1>, <proxy2>`])
+    "HTTP_X_FORWARDED_FOR",  # Similar to X_FORWARDED_TO
+    "HTTP_CLIENT_IP",  # Standard headers used by providers such as Amazon EC2, Heroku etc.
+    "HTTP_X_REAL_IP",  # Standard headers used by providers such as Amazon EC2, Heroku etc.
+    "HTTP_X_FORWARDED",  # Squid and others
+    "HTTP_X_CLUSTER_CLIENT_IP",  # Rackspace LB and Riverbed Stingray
+    "HTTP_FORWARDED_FOR",  # RFC 7239
+    "HTTP_FORWARDED",  # RFC 7239
+    "HTTP_VIA",  # Squid and others
+    "X-CLIENT-IP",  # Microsoft Azure
+    "X-REAL-IP",  # NGINX
+    "X-CLUSTER-CLIENT-IP",  # Rackspace Cloud Load Balancers
+    "X_FORWARDED",  # Squid
+    "FORWARDED_FOR",  # RFC 7239
+    "CF-CONNECTING-IP",  # CloudFlare
+    "TRUE-CLIENT-IP",  # CloudFlare Enterprise,
+    "FASTLY-CLIENT-IP",  # Firebase, Fastly
+    "FORWARDED",  # RFC 7239
+    "CLIENT-IP",  # Akamai and Cloudflare: True-Client-IP and Fastly: Fastly-Client-IP
+    "REMOTE_ADDR",  # Default
 )
 
 
