@@ -299,5 +299,155 @@ class TestIPv4Port(unittest.TestCase):
         self.assertEqual(r, (IPv4Address("127.0.0.1"), False))
 
 
+class TestIPv4Headers(unittest.TestCase):
+    """IPv4 Headers - IP address Headers Test"""
+
+    def setUp(self):
+        self.ipware = IpWare()
+
+    def tearDown(self):
+        self.ipware = None
+
+    def test_ipv4_X_FORWARDED_FOR(self):
+        meta = {
+            "X_FORWARDED_FOR": "177.139.233.139",
+        }
+        r = self.ipware.get_client_ip(meta)
+        self.assertEqual(r, (IPv4Address("177.139.233.139"), False))
+
+    def test_ipv4_HTTP_X_FORWARDED_FOR(self):
+        meta = {
+            "HTTP_X_FORWARDED_FOR": "177.139.233.139",
+        }
+        r = self.ipware.get_client_ip(meta)
+        self.assertEqual(r, (IPv4Address("177.139.233.139"), False))
+
+    def test_ipv4_HTTP_HTTP_CLIENT_IP(self):
+        meta = {
+            "HTTP_CLIENT_IP": "177.139.233.139",
+        }
+        r = self.ipware.get_client_ip(meta)
+        self.assertEqual(r, (IPv4Address("177.139.233.139"), False))
+
+    def test_ipv4_HTTP_X_REAL_IP(self):
+        meta = {
+            "HTTP_X_REAL_IP": "177.139.233.139",
+        }
+        r = self.ipware.get_client_ip(meta)
+        self.assertEqual(r, (IPv4Address("177.139.233.139"), False))
+
+    def test_ipv4_HTTP_X_FORWARDED(self):
+        meta = {
+            "HTTP_X_FORWARDED": "177.139.233.139",
+        }
+        r = self.ipware.get_client_ip(meta)
+        self.assertEqual(r, (IPv4Address("177.139.233.139"), False))
+
+    def test_ipv4_HTTP_X_CLUSTER_CLIENT_IP(self):
+        meta = {
+            "HTTP_X_CLUSTER_CLIENT_IP": "177.139.233.139",
+        }
+        r = self.ipware.get_client_ip(meta)
+        self.assertEqual(r, (IPv4Address("177.139.233.139"), False))
+
+    def test_ipv4_HTTP_HTTP_FORWARDED_FOR(self):
+        meta = {
+            "HTTP_FORWARDED_FOR": "177.139.233.139",
+        }
+        r = self.ipware.get_client_ip(meta)
+        self.assertEqual(r, (IPv4Address("177.139.233.139"), False))
+
+    def test_ipv4_HTTP_HTTP_FORWARDED(self):
+        meta = {
+            "HTTP_FORWARDED": "177.139.233.139",
+        }
+        r = self.ipware.get_client_ip(meta)
+        self.assertEqual(r, (IPv4Address("177.139.233.139"), False))
+
+    def test_ipv4_HTTP_VIA(self):
+        meta = {
+            "HTTP_VIA": "177.139.233.139",
+        }
+        r = self.ipware.get_client_ip(meta)
+        self.assertEqual(r, (IPv4Address("177.139.233.139"), False))
+
+    def test_ipv4_X_CLIENT_IP(self):
+        meta = {
+            "X-CLIENT-IP": "177.139.233.139",
+        }
+        r = self.ipware.get_client_ip(meta)
+        self.assertEqual(r, (IPv4Address("177.139.233.139"), False))
+
+    def test_ipv4_X_REAL_IP(self):
+        meta = {
+            "X-REAL-IP": "177.139.233.139",
+        }
+        r = self.ipware.get_client_ip(meta)
+        self.assertEqual(r, (IPv4Address("177.139.233.139"), False))
+
+    def test_ipv4_X_CLUSTER_CLIENT_IP(self):
+        meta = {
+            "X-CLUSTER-CLIENT-IP": "177.139.233.139",
+        }
+        r = self.ipware.get_client_ip(meta)
+        self.assertEqual(r, (IPv4Address("177.139.233.139"), False))
+
+    def test_ipv4_X_FORWARDED(self):
+        meta = {
+            "X_FORWARDED": "177.139.233.139",
+        }
+        r = self.ipware.get_client_ip(meta)
+        self.assertEqual(r, (IPv4Address("177.139.233.139"), False))
+
+    def test_ipv4_FORWARDED_FOR(self):
+        meta = {
+            "FORWARDED_FOR": "177.139.233.139",
+        }
+        r = self.ipware.get_client_ip(meta)
+        self.assertEqual(r, (IPv4Address("177.139.233.139"), False))
+
+    def test_ipv4_CF_CONNECTING_IP(self):
+        meta = {
+            "CF-CONNECTING-IP": "177.139.233.139",
+        }
+        r = self.ipware.get_client_ip(meta)
+        self.assertEqual(r, (IPv4Address("177.139.233.139"), False))
+
+    def test_ipv4_TRUE_CLIENT_IP(self):
+        meta = {
+            "TRUE-CLIENT-IP": "177.139.233.139",
+        }
+        r = self.ipware.get_client_ip(meta)
+        self.assertEqual(r, (IPv4Address("177.139.233.139"), False))
+
+    def test_ipv4_FASTLY_CLIENT_IP(self):
+        meta = {
+            "FASTLY-CLIENT-IP": "177.139.233.139",
+        }
+        r = self.ipware.get_client_ip(meta)
+        self.assertEqual(r, (IPv4Address("177.139.233.139"), False))
+
+    def test_ipv4_FORWARDED(self):
+        meta = {
+            "FORWARDED": "177.139.233.139",
+        }
+        r = self.ipware.get_client_ip(meta)
+        self.assertEqual(r, (IPv4Address("177.139.233.139"), False))
+
+    def test_ipv4_CLIENT_IP(self):
+        meta = {
+            "CLIENT-IP": "177.139.233.139",
+        }
+        r = self.ipware.get_client_ip(meta)
+        self.assertEqual(r, (IPv4Address("177.139.233.139"), False))
+
+    def test_ipv4_REMOTE_ADDR(self):
+        meta = {
+            "REMOTE_ADDR": "177.139.233.139",
+        }
+        r = self.ipware.get_client_ip(meta)
+        self.assertEqual(r, (IPv4Address("177.139.233.139"), False))
+
+
 if __name__ == "__main__":
     unittest.main()
