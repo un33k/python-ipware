@@ -11,6 +11,7 @@ authors = [
     {name = "Val Neekman", email = "info@neekware.com"},
 ]
 description = "A Python package to retrieve user's IP address"
+long_description = {file = ["README.md"]}
 requires-python = ">=3.7"
 dynamic = ["version", "readme"]
 license = {text = "MIT"}
