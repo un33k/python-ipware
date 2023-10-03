@@ -12,14 +12,17 @@
 
 # Notice
 
-There is no perfect `out-of-the-box` solution against fake IP addresses, aka `IP Address Spoofing`.
-You are encouraged to read the ([Advanced users](README.md#advanced-users)) section of this page and
-use `proxy_list` and/or `proxy_count` features to match your needs, especially `if` you are
-planning to include `ipware` in any authentication, security or `anti-fraud` related architecture.
+### Addressing IP Address Spoofing
 
-This is an open source project, with the source code visible to all. Therefore, it may be exploited through unimplemented, or improperly implemented features.
+There is no perfect `out-of-the-box` solution to counteract fake IP addresses, or IP Address Spoofing. We strongly recommend reading the [Advanced Users](README.md#advanced-users) section. Utilize the `proxy_list` and `proxy_count` features to adapt the functionality to your specific requirements, especially if you plan to incorporate `python-ipware` into authentication, security, or anti-fraud systems.
 
-Please use ipware `ONLY` as a complement to your `firewall` security measures!
+### Open Source Considerations
+
+Keep in mind that `python-ipware` is an open-source project, meaning its source code is accessible to everyone. While this openness promotes community engagement and scrutiny, it also exposes the code to potential exploiters who might take advantage of unimplemented or improperly implemented features.
+
+### Complementary Security Measure
+
+Use `python-ipware` **only** as an additional layer to bolster your security, not as a primary defense mechanism. Always pair it with robust firewall security protocols to ensure comprehensive protection against a variety of security threats, including IP spoofing.
 
 # How to install
 
@@ -35,23 +38,38 @@ Please use ipware `ONLY` as a complement to your `firewall` security measures!
 
 # How to use
 
+### Using ipware to Retrieve Client IP in Django or Flask
+
+Here's a basic example of how to use `ipware` in a view or middleware where the `request` object is available. This can be applied in Django, Flask, or other similar frameworks.
+
 ```python
-# In a view or a middleware where the `request` object is available
-import ipware
-ipware = Ipware() # default values
-meta = request.META # Django (meta = request.META), Flask (meta = request.environ), etc
+from ipware import Ipware
+
+# Instantiate Ipware with default values
+ipware = Ipware()
+
+# Get the META data from the request object
+# For Django use request.META, for Flask use request.environ
+meta = request.META  
+
+# Get the client IP and the trusted route flag
 ip, trusted_route = ipware.get_client_ip(meta)
-if ip: # IPv4Address() or IPv6Address() object
-    # ip object has the following properties
-    # ip.is_global (is globally routable)
-    # ip.is_private (is private ip address)
-    # is_loopback (is loopback address)
-# trusted_route tells if request came through our proxies (count / trusted)
 
-# do something with the ip address (e.g. pass it down through the request)
-# note: ip address doesn't change often, so better cache it for performance,
-# try to have distinct session ID for public and anonymous users to cache the ip address
+if ip:
+    # The 'ip' is an object of type IPv4Address() or IPv6Address() with properties like:
+    # - ip.is_global: True if the IP is globally routable
+    # - ip.is_private: True if the IP is a private address
+    # - ip.is_loopback: True if the IP is a loopback address
+    # - ip.is_multicast: True if the IP is a multicast address
+    # - ip.is_unspecified: True if the IP is an unspecified address
+    # - ip.is_reserved: True if the IP is a reserved address
 
+if trusted_route:
+    # Indicates if the request came through our trusted proxies
+
+# You can now use the IP address as needed, for example, attaching it to the request object.
+# Consider caching the IP address for performance, as it doesn't change often.
+# It's also advisable to have distinct session IDs for public and anonymous users to cache the IP address effectively.
 ```
 
 # Advanced users:
@@ -100,8 +118,6 @@ request_headers_precedence_order = (
     "CLIENT-IP",  # Akamai and Cloudflare: True-Client-IP and Fastly: Fastly-Client-IP
     "REMOTE_ADDR",  # Default
 )
-
-
 ```
 
 You can customize the order by providing your own list during initialization when calling `IpWare()`.
@@ -212,32 +228,40 @@ import ipware
 # no proxy enforce in this example
 ipware = IpWare()
 
-ip, _ = self.ipware.get_client_ip(meta=request.META)
+ip, _ = ipware.get_client_ip(meta=request.META)
 
 if ip.is_global:
     print('Public IP')
 else if ip.is_private:
     print('Private IP')
-else if ip.loopback:
+else if ip.is_loopback:
     print('Loopback IP')
+else if ip.is_multicast:
+    print('Multicast IP')
+else if ip.is_unspecified:
+    print('Unspecified IP')
+else if ip.is_reserved:
+    print('Reserved IP')
 ```
 
-### Support for IPv4, Ipv6, and IP:Port patterns
 
-```text
-- Ports will be automatically stripped off, and the IP addresses will be processed and returned.
-- IPv4s that are wrapped in IPv6 containers will be also unwrapped, processed and returned
-```
+### IP Address Handling
 
-### Originating Request
+#### Support for IPv4, IPv6, and IP:Port Patterns
 
-```test
-Please note that the [de-facto](https:#developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For) standard
-for the originating client IP address is the `leftmost`as per`client, proxy1, proxy2`, and the `rightmost` proxy is the most
-trusted proxy.
+`ipware` is designed to handle various IP address formats efficiently:
 
-However, in rare cases your network has a `custom` configuration where the `rightmost` IP address is that of the originating client. If that is the case, then indicate it when creating `IpWare(leftmost=False)`.
-```
+- **Ports Stripping:** Automatically removes ports from IP addresses, ensuring only the IP is processed.
+- **IPv6 Unwrapping:** Extracts and processes IPv4 addresses wrapped in IPv6 containers.
+
+#### Identifying the Originating IP Address
+
+The [de-facto standard](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For) for identifying the originating client IP address is to use the `leftmost` IP in the `X-Forwarded-For` header, following the pattern `client, proxy1, proxy2`. Here, the `rightmost` IP is considered the most trusted proxy.
+
+##### Custom Network Configurations
+
+In some rare scenarios, networks might be configured such that the `rightmost` IP address represents the originating client. In such cases, instantiate `IpWare` with the `leftmost=False` parameter:
+
 
 # Running the tests
 
