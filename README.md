@@ -115,8 +115,6 @@ ipw = IpWare(precedence=("X_FORWARDED_FOR"))
 # multiple meta keys
 ipw = IpWare(precedence=("X_FORWARDED_FOR", "HTTP_X_FORWARDED_FOR"))
 
-# usage is just to pass in the http request headers
-
 # Django (request.META)
 ip, proxy_verified = ipw.get_client_ip(meta=request.META)
 
