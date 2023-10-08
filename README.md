@@ -25,7 +25,9 @@ Please use ipware `ONLY` as a complement to your `firewall` security measures!
 
 ```
 pip install python-ipware
+```
 -- or --
+```
 pip3 install python-ipware
 ```
 
