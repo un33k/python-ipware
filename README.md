@@ -23,30 +23,30 @@ Please use ipware `ONLY` as a complement to your `firewall` security measures!
 
 # How to install
 
-    1. easy_install python-ipware
-    2. pip install python-ipware
-    3. git clone http:#github.com/un33k/python-ipware
-        a. cd python-ipware
-        b. run python setup.py install
-    4. wget https:#github.com/un33k/python-ipware/zipball/master
-        a. unzip the downloaded file
-        b. cd into python-ipware-* directory
-        c. run python setup.py install
+```
+pip install python-ipware
+-- or --
+pip3 install python-ipware
+```
 
 # How to use
 
+### Using python-ipware to Retrieve Client IP in Django or Flask
+
+Here's a basic example of how to use `python-ipware` in a view or middleware where the `request` object is available. This can be applied in Django, Flask, or other similar frameworks.
+
 ```python
-# In a view or a middleware where the `request` object is available
-import ipware
-ipware = Ipware() # default values
-meta = request.META # Django (meta = request.META), Flask (meta = request.environ), etc
-ip, trusted_route = ipware.get_client_ip(meta)
-if ip: # IPv4Address() or IPv6Address() object
-    # ip object has the following properties
-    # ip.is_global (is globally routable)
-    # ip.is_private (is private ip address)
-    # is_loopback (is loopback address)
-# trusted_route tells if request came through our proxies (count / trusted)
+from ipware import IpWare
+
+# Instantiate IpWare with default values
+ipw = IpWare()
+
+# Get the META data from the request object
+meta = request.META  # Django
+# meta = request.environ # Flask
+
+# Get the client IP and the trusted route flag
+ip, trusted_route = ipw.get_client_ip(meta)
 
 # do something with the ip address (e.g. pass it down through the request)
 # note: ip address doesn't change often, so better cache it for performance,
@@ -108,18 +108,18 @@ You can customize the order by providing your own list during initialization whe
 
 ```python
 # specific meta key
-ipware = IpWare(precedence=("X_FORWARDED_FOR"))
+ipw = IpWare(precedence=("X_FORWARDED_FOR"))
 
 # multiple meta keys
-ipware = IpWare(precedence=("X_FORWARDED_FOR", "HTTP_X_FORWARDED_FOR"))
+ipw = IpWare(precedence=("X_FORWARDED_FOR", "HTTP_X_FORWARDED_FOR"))
 
 # usage is just to pass in the http request headers
 
 # Django (request.META)
-ip, proxy_verified = ipware.get_client_ip(meta=request.META)
+ip, proxy_verified = ipw.get_client_ip(meta=request.META)
 
 # Flask (request.environ)
-ip, proxy_verified = ipware.get_client_ip(meta=request.environ)
+ip, proxy_verified = ipw.get_client_ip(meta=request.environ)
 
 # ... etc.
 
@@ -135,26 +135,26 @@ You can pass your custom list on every call, when calling the proxy-aware api to
 
 ```python
 # In the above scenario, use your load balancer IP address as a way to filter out unwanted requests.
-ipware = IpWare(proxy_list=["198.84.193.157"])
+ipw = IpWare(proxy_list=["198.84.193.157"])
 
 
 # If you have multiple proxies, simply add them to the list
-ipware = IpWare(proxy_list=["198.84.193.157", "198.84.193.158"])
+ipw = IpWare(proxy_list=["198.84.193.157", "198.84.193.158"])
 
 # For proxy servers with fixed sub-domain and dynamic IP, use the following pattern.
-ipware = IpWare(proxy_list=["177.139.", "177.140"])
+ipw = IpWare(proxy_list=["177.139.", "177.140"])
 
 # usage: non-strict mode (X-Forwarded-For: <fake>, <client>, <proxy1>, <proxy2>)
 # The request went through our <proxy1> and <proxy2>, then our server
 # We choose the <client> ip address to the left our <proxy1> and ignore other ips
-ip, trusted_route = self.ipware.get_client_ip(meta=request.META)
+ip, trusted_route = ipw.get_client_ip(meta=request.META)
 
 
 # usage: strict mode (X-Forwarded-For: <client>, <proxy1>, <proxy2>)
 # The request went through our <proxy1> and <proxy2>, then our server
 # Total ip address are total trusted proxies + client ip
 # We don't allow far-end proxies, or fake addresses (exact or None)
-ip, trusted_route = self.ipware.get_client_ip(meta=request.META, strict=True)
+ip, trusted_route = ipw.get_client_ip(meta=request.META, strict=True)
 ```
 
 In the following `example`, your public load balancer (LB) can be seen as a `trusted` proxy.
@@ -174,23 +174,23 @@ You can customize the proxy count by providing your `proxy_count` during initial
 
 ```python
 # In the above scenario, the total number of proxies can be used as a way to filter out unwanted requests.
-import ipware
+from ipware import IpWare
 
 # enforce proxy count
-ipware = IpWare(proxy_count=1)
+ipw = IpWare(proxy_count=1)
 
 # enforce proxy count and trusted proxies
-ipware = IpWare(proxy_count=1, proxy_list=["198.84.193.157"])
+ipw = IpWare(proxy_count=1, proxy_list=["198.84.193.157"])
 
 
 # usage: non-strict mode (X-Forwarded-For: <fake>, <client>, <proxy1>, <proxy2>)
 # total number of ip addresses are greater than the total count
-ip, trusted_route = self.ipware.get_client_ip(meta=request.META)
+ip, trusted_route = ipw.get_client_ip(meta=request.META)
 
 
 # usage: strict mode (X-Forwarded-For: <client>, <proxy1>, <proxy2>)
 # total number of ip addresses are exactly equal to client ip + proxy_count
-ip, trusted_route = self.ipware.get_client_ip(meta=request.META, strict=True)
+ip, trusted_route = ipw.get_client_ip(meta=request.META, strict=True)
 ```
 
 In the following `example`, your public load balancer (LB) can be seen as the `only` proxy.
@@ -207,12 +207,12 @@ In the following `example`, your public load balancer (LB) can be seen as the `o
 ```python
 # We make best attempt to return the first public IP address based on header precedence
 # Then we fall back on private, followed by loopback
-import ipware
+from ipware import IpWare
 
 # no proxy enforce in this example
-ipware = IpWare()
+ipw = IpWare()
 
-ip, _ = self.ipware.get_client_ip(meta=request.META)
+ip, _ = ipw.get_client_ip(meta=request.META)
 
 if ip.is_global:
     print('Public IP')
@@ -231,10 +231,18 @@ else if ip.loopback:
 
 ### Originating Request
 
-```test
-Please note that the [de-facto](https:#developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For) standard
-for the originating client IP address is the `leftmost`as per`client, proxy1, proxy2`, and the `rightmost` proxy is the most
-trusted proxy.
+`python-ipware` is designed to handle various IP address formats efficiently:
+
+- **Ports Stripping:** Automatically removes ports from IP addresses, ensuring only the IP is processed.
+- **IPv6 Unwrapping:** Extracts and processes IPv4 addresses wrapped in IPv6 containers.
+
+#### Identifying the Originating IP Address
+
+The [de-facto standard](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For) for identifying the originating client IP address is to use the `leftmost` IP in the `X-Forwarded-For` header, following the pattern `client, proxy1, proxy2`. Here, the `rightmost` IP is considered the most trusted proxy.
+
+##### Custom Network Configurations
+
+In some rare scenarios, networks might be configured such that the `rightmost` IP address represents the originating client. In such cases, instantiate `IpWare` with the `leftmost=False` parameter:
 
 However, in rare cases your network has a `custom` configuration where the `rightmost` IP address is that of the originating client. If that is the case, then indicate it when creating `IpWare(leftmost=False)`.
 ```
