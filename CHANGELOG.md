@@ -1,3 +1,10 @@
+## 2.0.0
+
+- Introduced breaking changes to avoid conflicts with the `django-ipware` package.
+- Renamed the imported module from `ipware` to `python_ipware` in the `python-ipware` package.
+  - Old usage: `from ipware import IpWare`
+  - New usage: `from python_ipware import IpWare`
+  
 ## 1.0.5
 
 - Enhance: Readme updates

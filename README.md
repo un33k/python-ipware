@@ -41,7 +41,7 @@ pip3 install python-ipware
 Here's a basic example of how to use `python-ipware` in a view or middleware where the `request` object is available. This can be applied in Django, Flask, or other similar frameworks.
 
 ```python
-from ipware import IpWare
+from python_ipware import IpWare
 
 # Instantiate IpWare with default values
 ipw = IpWare()
@@ -186,7 +186,7 @@ You can customize the proxy count by providing your `proxy_count` during initial
 
 ```python
 # In the above scenario, the total number of proxies can be used as a way to filter out unwanted requests.
-from ipware import IpWare
+from python_ipware import IpWare
 
 # enforce proxy count
 ipw = IpWare(proxy_count=1)
@@ -219,7 +219,7 @@ In the following `example`, your public load balancer (LB) can be seen as the `o
 ```python
 # We make best attempt to return the first public IP address based on header precedence
 # Then we fall back on private, followed by loopback
-from ipware import IpWare
+from python_ipware import IpWare
 
 # no proxy enforce in this example
 ipw = IpWare()
