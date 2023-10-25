@@ -43,14 +43,14 @@ dev = [
 ]
 
 [tool.setuptools]
-packages = ["ipware"]
+packages = ["python_ipware"]
 
 [tool.setuptools.dynamic]
-version = {attr = "ipware.__version__"}
+version = {attr = "python_ipware.__version__"}
 readme = {file = ["README.md"], content-type = "text/markdown"}
 
 [tool.setuptools.package-data]
-"ipware" = ["py.typed"]
+"python_ipware" = ["py.typed"]
 
 [tool.ruff]
 select = [
@@ -85,5 +85,5 @@ max-complexity = 16
 
 [tool.coverage.run]
 omit = [
-    "ipware/__version__.py"
+    "python_ipware/__version__.py"
 ]
