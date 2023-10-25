@@ -34,7 +34,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e .[dev]
       - name: Run ruff
-        run: ruff --format=github .
+        run: ruff .
       - name: Run test
         run: coverage run --source=python_ipware -m unittest discover
       - name: Coveralls
