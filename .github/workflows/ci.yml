@@ -36,7 +36,7 @@ jobs:
       - name: Run ruff
         run: ruff --format=github .
       - name: Run test
-        run: coverage run --source=ipware -m unittest discover
+        run: coverage run --source=python_ipware -m unittest discover
       - name: Coveralls
         run: coveralls --service=github
         env:

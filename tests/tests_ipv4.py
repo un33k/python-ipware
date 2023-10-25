@@ -1,7 +1,7 @@
 import unittest
 import logging
 from ipaddress import IPv4Address
-from ipware import IpWare
+from python_ipware import IpWare
 
 logging.disable(logging.CRITICAL)  # Disable logging for the entire file
 
