@@ -26,7 +26,6 @@ class IpWareMeta:
             "HTTP_X_CLUSTER_CLIENT_IP",  # Rackspace LB and Riverbed Stingray
             "HTTP_FORWARDED_FOR",  # RFC 7239
             "HTTP_FORWARDED",  # RFC 7239
-            "HTTP_VIA",  # Squid and others
             "X-CLIENT-IP",  # Microsoft Azure
             "X-REAL-IP",  # NGINX
             "X-CLUSTER-CLIENT-IP",  # Rackspace Cloud Load Balancers
@@ -106,7 +105,7 @@ class IpWareIpAddress:
                     ip = ipaddress.IPv4Address(ipv4)
                 except ipaddress.AddressValueError:
                     # not a valid IP address, return None
-                    logging.exception("Invalid ip address. {0}".format(ip_str))
+                    logging.info("Invalid ip address. {0}".format(ip_str))
                     ip = None
         return ip
 
