@@ -364,13 +364,6 @@ class TestIPv4Headers(unittest.TestCase):
         r = self.ipware.get_client_ip(meta)
         self.assertEqual(r, (IPv4Address("177.139.233.139"), False))
 
-    def test_ipv4_http_via(self):
-        meta = {
-            "HTTP_VIA": "177.139.233.139",
-        }
-        r = self.ipware.get_client_ip(meta)
-        self.assertEqual(r, (IPv4Address("177.139.233.139"), False))
-
     def test_ipv4_x_client_ip(self):
         meta = {
             "X-CLIENT-IP": "177.139.233.139",

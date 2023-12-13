@@ -103,7 +103,6 @@ request_headers_precedence_order = (
     "HTTP_X_CLUSTER_CLIENT_IP",  # Rackspace LB and Riverbed Stingray
     "HTTP_FORWARDED_FOR",  # RFC 7239
     "HTTP_FORWARDED",  # RFC 7239
-    "HTTP_VIA",  # Squid and others
     "X-CLIENT-IP",  # Microsoft Azure
     "X-REAL-IP",  # NGINX
     "X-CLUSTER-CLIENT-IP",  # Rackspace Cloud Load Balancers
