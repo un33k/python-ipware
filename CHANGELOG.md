@@ -1,3 +1,7 @@
+## 2.0.1
+Issue:
+- Remove `HTTP_VIA` header support (unreliable IP information) (@yourcelf)
+
 ## 2.0.0
 
 - Introduced breaking changes to avoid conflicts with the `django-ipware` package.
