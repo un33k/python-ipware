@@ -2,6 +2,9 @@
 Issue:
 - Remove `HTTP_VIA` header support (unreliable IP information) (@yourcelf)
 
+Enhance:
+- Include support for python 3.12
+
 ## 2.0.0
 
 - Introduced breaking changes to avoid conflicts with the `django-ipware` package.
