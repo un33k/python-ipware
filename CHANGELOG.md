@@ -1,4 +1,10 @@
+## 2.0.2
+
+Enhance:
+- Added logger name
+
 ## 2.0.1
+
 Issue:
 - Remove `HTTP_VIA` header support (unreliable IP information) (@yourcelf)
 
@@ -11,7 +17,7 @@ Enhance:
 - Renamed the imported module from `ipware` to `python_ipware` in the `python-ipware` package.
   - Old usage: `from ipware import IpWare`
   - New usage: `from python_ipware import IpWare`
-  
+
 ## 1.0.5
 
 - Enhance: Readme updates
