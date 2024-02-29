@@ -6,6 +6,8 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 IpAddressType = Union[ipaddress.IPv4Address, ipaddress.IPv6Address]
 OptionalIpAddressType = Optional[IpAddressType]
 
+logger = logging.getLogger(__name__)
+
 
 class IpWareMeta:
     """
@@ -105,7 +107,7 @@ class IpWareIpAddress:
                     ip = ipaddress.IPv4Address(ipv4)
                 except ipaddress.AddressValueError:
                     # not a valid IP address, return None
-                    logging.info("Invalid ip address. {0}".format(ip_str))
+                    logger.info("Invalid ip address. {0}".format(ip_str))
                     ip = None
         return ip
 
@@ -324,7 +326,7 @@ class IpWare(IpWareMeta, IpWareProxy, IpWareIpAddress):
         """
 
         if not ip_list:
-            logging.warning("Invalid ip list provided.")
+            logger.warning("Invalid ip list provided.")
             return None, False
 
         # the incoming ips match our trusted proxy list
