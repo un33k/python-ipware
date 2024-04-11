@@ -1,3 +1,8 @@
+## 2.0.3
+
+Enhance:
+- Added `HTTP_CF_CONNECTING_IP` to list of known ip headers (Adam M.)
+
 ## 2.0.2
 
 Enhance:
