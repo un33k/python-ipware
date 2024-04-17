@@ -211,7 +211,6 @@ class TestIPv4ProxyCount(unittest.TestCase):
     def test_proxy_count_one_dont_care_proxy_pass(self):
         ipware = IpWare()
         meta = {
-            "HTTP_X_FORWARDED_FOR": "10.0.0.0",
             "HTTP_X_FORWARDED_FOR": "177.139.233.139, 198.84.193.157, 198.84.193.158",
         }
         r = ipware.get_client_ip(meta)
@@ -220,7 +219,6 @@ class TestIPv4ProxyCount(unittest.TestCase):
     def test_proxy_count_zero_dont_care_proxy_pass(self):
         ipware = IpWare(proxy_count=0)
         meta = {
-            "HTTP_X_FORWARDED_FOR": "10.0.0.0",
             "HTTP_X_FORWARDED_FOR": "177.139.233.139, 198.84.193.157, 198.84.193.158",
         }
         r = ipware.get_client_ip(meta)
@@ -229,7 +227,6 @@ class TestIPv4ProxyCount(unittest.TestCase):
     def test_proxy_count_zero_exact_zero_proxy_pass(self):
         ipware = IpWare(proxy_count=0)
         meta = {
-            "HTTP_X_FORWARDED_FOR": "10.0.0.0",
             "HTTP_X_FORWARDED_FOR": "177.139.233.139",
         }
         r = ipware.get_client_ip(meta, strict=True)
@@ -238,7 +235,6 @@ class TestIPv4ProxyCount(unittest.TestCase):
     def test_proxy_count_zero_exact_zero_proxy_fail(self):
         ipware = IpWare(proxy_count=0)
         meta = {
-            "HTTP_X_FORWARDED_FOR": "10.0.0.0",
             "HTTP_X_FORWARDED_FOR": "177.139.233.139, 198.84.193.157, 198.84.193.158",
         }
         r = ipware.get_client_ip(meta, strict=True)
@@ -279,26 +275,68 @@ class TestIPv4ProxyList(unittest.TestCase):
 class TestIPv4ProxyCountProxyList(unittest.TestCase):
     """IPv4 Proxy Count Test"""
 
-    def setUp(self):
-        self.ipware = IpWare(
-            proxy_count=2, proxy_list=["198.84.193.157", "198.84.193.158"]
-        )
-
-    def tearDown(self):
-        self.ipware = None
-
     def test_proxy_list_relax(self):
+        ipware = IpWare(proxy_list=["198.84.193.157", "198.84.193.158"])
         meta = {
             "HTTP_X_FORWARDED_FOR": "177.139.233.138, 177.139.233.139, 198.84.193.157, 198.84.193.158",
         }
-        r = self.ipware.get_client_ip(meta)
+        r = ipware.get_client_ip(meta)
         self.assertEqual(r, (IPv4Address("177.139.233.139"), True))
 
-    def test_proxy_list_strict(self):
+    def test_proxy_list_strict_pass(self):
+        ipware = IpWare(proxy_list=["198.84.193.157", "198.84.193.158"])
+        meta = {
+            "HTTP_X_FORWARDED_FOR": "177.139.233.139, 198.84.193.157, 198.84.193.158",
+        }
+        r = ipware.get_client_ip(meta, strict=True)
+        self.assertEqual(r, (IPv4Address("177.139.233.139"), True))
+
+    def test_proxy_list_strict_fail(self):
+        ipware = IpWare(proxy_list=["198.84.193.157", "198.84.193.158"])
         meta = {
             "HTTP_X_FORWARDED_FOR": "177.139.233.138, 177.139.233.139, 198.84.193.157, 198.84.193.158",
         }
-        r = self.ipware.get_client_ip(meta, strict=True)
+        r = ipware.get_client_ip(meta, strict=True)
+        self.assertEqual(r, (None, False))
+
+    def test_proxy_list_relax_exact_pass(self):
+        ipware = IpWare(proxy_count=2, proxy_list=["198.84.193.157", "198.84.193.158"])
+        meta = {
+            "HTTP_X_FORWARDED_FOR": "177.139.233.138, 177.139.233.139, 198.84.193.157, 198.84.193.158",
+        }
+        r = ipware.get_client_ip(meta)
+        self.assertEqual(r, (IPv4Address("177.139.233.139"), True))
+
+    def test_proxy_list_relax_count_under_pass(self):
+        ipware = IpWare(proxy_count=1, proxy_list=["198.84.193.157", "198.84.193.158"])
+        meta = {
+            "HTTP_X_FORWARDED_FOR": "177.139.233.138, 177.139.233.139, 198.84.193.157, 198.84.193.158",
+        }
+        r = ipware.get_client_ip(meta)
+        self.assertEqual(r, (IPv4Address("177.139.233.139"), True))
+
+    def test_proxy_list_relax_count_over_pass(self):
+        ipware = IpWare(proxy_count=5, proxy_list=["198.84.193.157", "198.84.193.158"])
+        meta = {
+            "HTTP_X_FORWARDED_FOR": "177.139.233.138, 177.139.233.139, 198.84.193.157, 198.84.193.158",
+        }
+        r = ipware.get_client_ip(meta)
+        self.assertEqual(r, (None, False))
+
+    def test_proxy_list_count_exact_pass(self):
+        ipware = IpWare(proxy_count=2, proxy_list=["198.84.193.157", "198.84.193.158"])
+        meta = {
+            "HTTP_X_FORWARDED_FOR": "177.139.233.138, 177.139.233.139, 198.84.193.157, 198.84.193.158",
+        }
+        r = ipware.get_client_ip(meta)
+        self.assertEqual(r, (IPv4Address("177.139.233.139"), True))
+
+    def test_proxy_list_count_exact_fail(self):
+        ipware = IpWare(proxy_count=4, proxy_list=["198.84.193.157", "198.84.193.158"])
+        meta = {
+            "HTTP_X_FORWARDED_FOR": "177.139.233.138, 177.139.233.139, 198.84.193.157, 198.84.193.158",
+        }
+        r = ipware.get_client_ip(meta)
         self.assertEqual(r, (None, False))
 
 
