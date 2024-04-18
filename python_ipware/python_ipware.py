@@ -333,7 +333,11 @@ class IpWare(IpWareMeta, IpWareProxy, IpWareIpAddress):
             return best_client_ip, True
 
         # the incoming ips match our proxy count
-        if self.proxy_count and self.proxy_count > 0 and proxy_count_validated:
+        if (
+            self.proxy_count is not None
+            and self.proxy_count > 0
+            and proxy_count_validated
+        ):
             best_client_ip_index = self.proxy_count + 1
             best_client_ip = ip_list[-best_client_ip_index]
             return best_client_ip, True

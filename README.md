@@ -182,26 +182,42 @@ In the following `example`, your public load balancer (LB) can be seen as a `tru
 
 If your python server is behind a `known` number of proxies, but you deploy on multiple providers and don't want to track proxy IPs, you still can filter out unwanted requests by providing proxy `count`.
 
-You can customize the proxy count by providing your `proxy_count` during initialization when calling `IpWare(proxy_count=2)`.
+You can customize the proxy count by providing your `proxy_count` during initialization when calling `IpWare(proxy_count=1)`.
 
 ```python
-# In the above scenario, the total number of proxies can be used as a way to filter out unwanted requests.
 from python_ipware import IpWare
 
-# enforce proxy count
-ipw = IpWare(proxy_count=1)
+# Enforce proxy count - proxy_count=0 is valid, proxy_count=None to disable proxy_count check
+ipw = IpWare(proxy_count=2)
 
-# enforce proxy count and trusted proxies
-ipw = IpWare(proxy_count=1, proxy_list=["198.84.193.157"])
-
-
-# usage: non-strict mode (X-Forwarded-For: <fake>, <client>, <proxy1>, <proxy2>)
-# total number of ip addresses are greater than the total count
+# Example usage in non-strict mode:
+# X-Forwarded-For format: <fake>, <client>, <proxy1>, <proxy2>
+# At least `proxy_count` number of proxies
 ip, trusted_route = ipw.get_client_ip(meta=request.META)
 
+# Example usage in strict mode:
+# X-Forwarded-For format: <client>, <proxy1>, <proxy2>
+# Exact `proxy_count` number of proxies
+ip, trusted_route = ipw.get_client_ip(meta=request.META, strict=True)
+```
 
-# usage: strict mode (X-Forwarded-For: <client>, <proxy1>, <proxy2>)
-# total number of ip addresses are exactly equal to client ip + proxy_count
+### Proxy Count & Trusted Proxy List Combo
+In this example, we utilize the total number of proxies as a method to filter out unwanted requests while verifying the trust proxies.
+
+```python
+from python_ipware import IpWare
+
+# Enforce both proxy count and trusted proxies
+ipw = IpWare(proxy_count=1, proxy_list=["198.84.193.157"])
+
+# Example usage in non-strict mode:
+# X-Forwarded-For format: <fake>, <client>, <proxy1>, <proxy2>
+# The total number of IP addresses can exceed the total count
+ip, trusted_route = ipw.get_client_ip(meta=request.META)
+
+# Example usage in strict mode:
+# X-Forwarded-For format: <client>, <proxy1>
+# The total number of IP addresses must match the client IP plus the proxy count
 ip, trusted_route = ipw.get_client_ip(meta=request.META, strict=True)
 ```
 
