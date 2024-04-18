@@ -1,3 +1,8 @@
+## 2.0.4
+
+Enhance:
+- Added `proxy_count=0` as an option (@FraKraBa)
+
 ## 2.0.3
 
 Enhance:

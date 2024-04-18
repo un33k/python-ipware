@@ -144,12 +144,9 @@ class IpWareProxy:
 
     def __init__(
         self,
-        proxy_count: int = 0,
+        proxy_count: Optional[int] = None,
         proxy_list: Optional[List[str]] = None,
     ) -> None:
-        if proxy_count is None or proxy_count < 0:
-            raise ValueError("proxy_count must be a positive integer")
-
         self.proxy_count = proxy_count
         self.proxy_list = self._is_valid_proxy_trusted_list(proxy_list or [])
 
@@ -172,15 +169,14 @@ class IpWareProxy:
         """
         Checks if the proxy count is valid
         @param ip_list: list of ip addresses
-        @param strict: if True, we must have exactly proxy_count proxies
+        @param strict: if True, we must have exactly proxy_count proxies, including `0` proxies
         @return: True if the proxy count is valid, False otherwise
         """
-        if self.proxy_count < 1:
+        # No proxy count check is required
+        if self.proxy_count is None:
             return True
 
         ip_count: int = len(ip_list)
-        if ip_count < 1:
-            return False
 
         if strict:
             # our first proxy takes the last ip address and treats it as client ip
@@ -221,10 +217,6 @@ class IpWareProxy:
             if not str(value).startswith(self.proxy_list[index]):
                 return False
 
-        # now all we need is to return the first ip in the list that is not in the trusted proxy list
-        # best_client_ip_index = proxy_list_count + 1
-        # best_client_ip = ip_list[-best_client_ip_index]
-
         return True
 
 
@@ -237,11 +229,11 @@ class IpWare(IpWareMeta, IpWareProxy, IpWareIpAddress):
         self,
         precedence: Optional[Tuple[str, ...]] = None,
         leftmost: bool = True,
-        proxy_count: int = 0,
+        proxy_count: Optional[int] = None,
         proxy_list: Optional[List[str]] = None,
     ) -> None:
         IpWareMeta.__init__(self, precedence, leftmost)
-        IpWareProxy.__init__(self, proxy_count or 0, proxy_list or [])
+        IpWareProxy.__init__(self, proxy_count, proxy_list)
 
     def get_meta_value(self, meta: Dict[str, str], key: str) -> str:
         """
@@ -257,7 +249,13 @@ class IpWare(IpWareMeta, IpWareProxy, IpWareIpAddress):
         Given a list of keys, it returns a list of cleaned up values
         @return: a list of values
         """
-        return [self.get_meta_value(meta, key) for key in self.precedence]
+        meta_list: List[str] = []
+        for key in self.precedence:
+            value = self.get_meta_value(meta, key).strip()
+            if value:
+                meta_list.append(value)
+
+        return meta_list
 
     def get_client_ip(
         self,
@@ -272,8 +270,6 @@ class IpWare(IpWareMeta, IpWareProxy, IpWareIpAddress):
         private_list: List[OptionalIpAddressType] = []
 
         for ip_str in self.get_meta_values(meta):
-            if not ip_str:
-                continue
 
             ip_list = self.get_ips_from_string(ip_str)
             if not ip_list:
@@ -337,7 +333,11 @@ class IpWare(IpWareMeta, IpWareProxy, IpWareIpAddress):
             return best_client_ip, True
 
         # the incoming ips match our proxy count
-        if self.proxy_count > 0 and proxy_count_validated:
+        if (
+            self.proxy_count is not None
+            and self.proxy_count > 0
+            and proxy_count_validated
+        ):
             best_client_ip_index = self.proxy_count + 1
             best_client_ip = ip_list[-best_client_ip_index]
             return best_client_ip, True
