@@ -17,7 +17,7 @@ class IpWareMeta:
     def __init__(
         self,
         precedence: Optional[Tuple[str, ...]] = None,
-        leftmost: Optional[bool] = True,
+        leftmost: bool = True,
     ) -> None:
         self.precedence = precedence or (
             "X_FORWARDED_FOR",  # Load balancers or proxies such as AWS ELB (default client is `left-most` [`<client>, <proxy1>, <proxy2>`])
@@ -228,7 +228,7 @@ class IpWare(IpWareMeta, IpWareProxy, IpWareIpAddress):
     def __init__(
         self,
         precedence: Optional[Tuple[str, ...]] = None,
-        leftmost: Optional[bool] = True,
+        leftmost: bool = True,
         proxy_count: Optional[int] = None,
         proxy_list: Optional[List[str]] = None,
     ) -> None:
