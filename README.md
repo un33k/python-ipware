@@ -182,12 +182,14 @@ In the following `example`, your public load balancer (LB) can be seen as a `tru
 
 If your python server is behind a `known` number of proxies, but you deploy on multiple providers and don't want to track proxy IPs, you still can filter out unwanted requests by providing proxy `count`.
 
-You can customize the proxy count by providing your `proxy_count` during initialization when calling `IpWare(proxy_count=1)`.
+You can customize the proxy count by providing your `proxy_count` during initialization when calling `IpWare(proxy_count=2)`.
 
 ```python
 from python_ipware import IpWare
 
-# Enforce proxy count - proxy_count=0 is valid, proxy_count=None to disable proxy_count check
+# Enforce proxy count
+# proxy_count=0 is valid
+# proxy_count=None to disable proxy_count check
 ipw = IpWare(proxy_count=2)
 
 # Example usage in non-strict mode:
@@ -212,12 +214,12 @@ ipw = IpWare(proxy_count=1, proxy_list=["198.84.193.157"])
 
 # Example usage in non-strict mode:
 # X-Forwarded-For format: <fake>, <client>, <proxy1>, <proxy2>
-# The total number of IP addresses can exceed the total count
+# At least `proxy_count` number of proxies
 ip, trusted_route = ipw.get_client_ip(meta=request.META)
 
 # Example usage in strict mode:
 # X-Forwarded-For format: <client>, <proxy1>
-# The total number of IP addresses must match the client IP plus the proxy count
+# Exact `proxy_count` number of proxies
 ip, trusted_route = ipw.get_client_ip(meta=request.META, strict=True)
 ```
 
