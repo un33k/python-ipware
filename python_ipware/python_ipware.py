@@ -1,14 +1,12 @@
 import ipaddress
 import logging
 
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 IpAddressType = Union[ipaddress.IPv4Address, ipaddress.IPv6Address]
 OptionalIpAddressType = Optional[IpAddressType]
 
 logger = logging.getLogger(__name__)
-
-from typing import Optional, Tuple
 
 
 class IpWareMeta:
@@ -200,9 +198,9 @@ class IpWareProxy:
         if strict:
             return ip_count - 1 == self.proxy_count
             # Exact match required, excluding client's own IP.
-        else:
-            return ip_count - 1 >= self.proxy_count
-            # Allow more proxies than the count, excluding client's IP.
+
+        return ip_count - 1 >= self.proxy_count
+        # Allow more proxies than the count, excluding client's IP.
 
     def is_proxy_trusted_list_valid(
         self, ip_list: List[str], strict: bool = False
@@ -301,9 +299,7 @@ class IpWare(IpWareMeta, IpWareProxy, IpWareIpAddress):
             if not proxy_list_validated:
                 continue
 
-            client_ip, trusted_route = self.get_best_ip(
-                ip_list, proxy_count_validated, proxy_list_validated
-            )
+            client_ip, trusted_route = self.get_best_ip(ip_list)
 
             # we found a global ip, return it
             if client_ip is not None and client_ip.is_global:
@@ -333,8 +329,6 @@ class IpWare(IpWareMeta, IpWareProxy, IpWareIpAddress):
     def get_best_ip(
         self,
         ip_list: List[IpAddressType],
-        proxy_count_validated: bool = True,
-        proxy_list_validated: bool = True,
     ) -> Tuple[OptionalIpAddressType, bool]:
         """
         Returns the best possible ip for the client.
@@ -345,17 +339,13 @@ class IpWare(IpWareMeta, IpWareProxy, IpWareIpAddress):
             return None, False
 
         # the incoming ips match our trusted proxy list
-        if len(self.proxy_list) > 0 and proxy_list_validated:
+        if len(self.proxy_list) > 0:
             best_client_ip_index = len(self.proxy_list) + 1
             best_client_ip = ip_list[-best_client_ip_index]
             return best_client_ip, True
 
         # the incoming ips match our proxy count
-        if (
-            self.proxy_count is not None
-            and self.proxy_count > 0
-            and proxy_count_validated
-        ):
+        if self.proxy_count is not None:
             best_client_ip_index = self.proxy_count + 1
             best_client_ip = ip_list[-best_client_ip_index]
             return best_client_ip, True

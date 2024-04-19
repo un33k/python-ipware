@@ -229,7 +229,7 @@ class TestIPv4ProxyCount(unittest.TestCase):
             "HTTP_X_FORWARDED_FOR": "177.139.233.139, 198.84.193.157, 198.84.193.158",
         }
         r = ipware.get_client_ip(meta)
-        self.assertEqual(r, (IPv4Address("177.139.233.139"), False))
+        self.assertEqual(r, (IPv4Address("198.84.193.158"), True))
 
     def test_proxy_count_zero_exact_zero_proxy_pass(self):
         ipware = IpWare(proxy_count=0)
@@ -237,7 +237,7 @@ class TestIPv4ProxyCount(unittest.TestCase):
             "HTTP_X_FORWARDED_FOR": "177.139.233.139",
         }
         r = ipware.get_client_ip(meta, strict=True)
-        self.assertEqual(r, (IPv4Address("177.139.233.139"), False))
+        self.assertEqual(r, (IPv4Address("177.139.233.139"), True))
 
     def test_proxy_count_zero_exact_zero_proxy_fail(self):
         ipware = IpWare(proxy_count=0)
