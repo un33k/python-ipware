@@ -238,7 +238,7 @@ class IpWareProxy:
 
 class IpWare(IpWareMeta, IpWareProxy, IpWareIpAddress):
     """
-    A class that makes best effort to determine the client's IP address.
+    A class that makes a best effort to determine the client's IP address.
     """
 
     def __init__(
@@ -253,24 +253,23 @@ class IpWare(IpWareMeta, IpWareProxy, IpWareIpAddress):
 
     def get_meta_value(self, meta: Dict[str, str], key: str) -> str:
         """
-        Given a key, it returns a cleaned up version of the value
-        @param key: the key to lookup
-        @return: the value of the key or empty string
+        Returns a cleaned up version of the value for a given key.
+        @param key: The key to look up.
+        @return: The value of the key or an empty string if the key is not found.
         """
         meta = meta or {}
         return meta.get(key, meta.get(key.replace("_", "-"), "")).strip()
 
     def get_meta_values(self, meta: Dict[str, str]) -> List[str]:
         """
-        Given a list of keys, it returns a list of cleaned up values
-        @return: a list of values
+        Returns a list of cleaned up values for the keys defined in 'precedence'.
+        @return: A list of values.
         """
         meta_list: List[str] = []
         for key in self.precedence:
             value = self.get_meta_value(meta, key).strip()
             if value:
                 meta_list.append(value)
-
         return meta_list
 
     def get_client_ip(
@@ -281,12 +280,10 @@ class IpWare(IpWareMeta, IpWareProxy, IpWareIpAddress):
         """
         Returns the client's IP address.
         """
-
         loopback_list: List[IpAddressType] = []
         private_list: List[OptionalIpAddressType] = []
 
         for ip_str in self.get_meta_values(meta):
-
             ip_list = self.get_ips_from_string(ip_str, strict)
             if not ip_list:
                 continue
@@ -300,30 +297,18 @@ class IpWare(IpWareMeta, IpWareProxy, IpWareIpAddress):
                 continue
 
             client_ip, trusted_route = self.get_best_ip(ip_list)
+            if client_ip is not None:
+                if client_ip.is_global:
+                    return client_ip, trusted_route
+                elif client_ip.is_loopback:
+                    loopback_list.append(client_ip)
+                else:
+                    private_list.append(client_ip)
 
-            # we found a global ip, return it
-            if client_ip is not None and client_ip.is_global:
-                return client_ip, trusted_route
-
-            # we found a private ip, save it
-            if client_ip is not None and client_ip.is_loopback:
-                loopback_list.append(client_ip)
-            else:
-                # if not global (public) or loopback (local), we treat it asd private
-                private_list.append(client_ip)
-
-        # we have not been able to locate a global ip
-        # it could be the server is running on the intranet
-        # we will return the first private ip we found
         if private_list:
             return private_list[0], False
-
-        # we have not been able to locate a global ip, nor a private ip
-        # it could be the server is running on a loopback address serving local requests
         if loopback_list:
             return loopback_list[0], False
-
-        # we were unable to find any ip address
         return None, False
 
     def get_best_ip(
@@ -331,24 +316,20 @@ class IpWare(IpWareMeta, IpWareProxy, IpWareIpAddress):
         ip_list: List[IpAddressType],
     ) -> Tuple[OptionalIpAddressType, bool]:
         """
-        Returns the best possible ip for the client.
+        Determines the best possible IP address for the client from a list of IP addresses.
         """
-
         if not ip_list:
-            logger.warning("Invalid ip list provided.")
+            logger.warning("Invalid IP list provided.")
             return None, False
 
-        # the incoming ips match our trusted proxy list
-        if len(self.proxy_list) > 0:
+        if self.proxy_list and len(self.proxy_list) > 0:
             best_client_ip_index = len(self.proxy_list) + 1
             best_client_ip = ip_list[-best_client_ip_index]
             return best_client_ip, True
 
-        # the incoming ips match our proxy count
         if self.proxy_count is not None:
             best_client_ip_index = self.proxy_count + 1
             best_client_ip = ip_list[-best_client_ip_index]
             return best_client_ip, True
 
-        # we don't track proxy related info, so we just return the first ip
         return ip_list[0], False
