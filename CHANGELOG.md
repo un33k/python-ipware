@@ -1,3 +1,8 @@
+## 2.0.5
+
+Enhance:
+- AI assisted clean up
+
 ## 2.0.4
 
 Enhance:
