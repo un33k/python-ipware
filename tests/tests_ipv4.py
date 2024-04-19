@@ -77,12 +77,27 @@ class TestIPv4Common(unittest.TestCase):
             "HTTP_X_FORWARDED_FOR": "unknown, 177.139.233.139, 198.84.193.157, 198.84.193.158",
         }
         r = self.ipware.get_client_ip(meta)
+        self.assertEqual(r, (IPv4Address("177.139.233.139"), False))
+
+    def test_error_only_strict(self):
+        meta = {
+            "HTTP_X_FORWARDED_FOR": "unknown, 177.139.233.139, 198.84.193.157, 198.84.193.158",
+        }
+        r = self.ipware.get_client_ip(meta, strict=True)
         self.assertEqual(r, (None, False))
+
+    def test_error_only_first_strict(self):
+        meta = {
+            "X_FORWARDED_FOR": "177.139.233.138, 198.84.193.157, 198.84.193.158",
+            "HTTP_X_FORWARDED_FOR": "unknown, 177.139.233.139, 198.84.193.157, 198.84.193.158",
+        }
+        r = self.ipware.get_client_ip(meta, strict=True)
+        self.assertEqual(r, (IPv4Address("177.139.233.138"), False))
 
     def test_error_first(self):
         meta = {
-            "HTTP_X_FORWARDED_FOR": "unknown, 177.139.233.139, 198.84.193.157, 198.84.193.158",
-            "X_FORWARDED_FOR": "177.139.233.138, 198.84.193.157, 198.84.193.158",
+            "X_FORWARDED_FOR": "unknown, 177.139.233.138, 198.84.193.157, 198.84.193.158",
+            "HTTP_X_FORWARDED_FOR": "177.139.233.139, 198.84.193.157, 198.84.193.158",
         }
         r = self.ipware.get_client_ip(meta)
         self.assertEqual(r, (IPv4Address("177.139.233.138"), False))
@@ -222,7 +237,7 @@ class TestIPv4ProxyCount(unittest.TestCase):
             "HTTP_X_FORWARDED_FOR": "177.139.233.139, 198.84.193.157, 198.84.193.158",
         }
         r = ipware.get_client_ip(meta)
-        self.assertEqual(r, (IPv4Address("177.139.233.139"), False))
+        self.assertEqual(r, (IPv4Address("198.84.193.158"), True))
 
     def test_proxy_count_zero_exact_zero_proxy_pass(self):
         ipware = IpWare(proxy_count=0)
@@ -230,7 +245,7 @@ class TestIPv4ProxyCount(unittest.TestCase):
             "HTTP_X_FORWARDED_FOR": "177.139.233.139",
         }
         r = ipware.get_client_ip(meta, strict=True)
-        self.assertEqual(r, (IPv4Address("177.139.233.139"), False))
+        self.assertEqual(r, (IPv4Address("177.139.233.139"), True))
 
     def test_proxy_count_zero_exact_zero_proxy_fail(self):
         ipware = IpWare(proxy_count=0)
