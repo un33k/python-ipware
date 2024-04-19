@@ -1,7 +1,7 @@
 import ipaddress
 import logging
 
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 IpAddressType = Union[ipaddress.IPv4Address, ipaddress.IPv6Address]
 OptionalIpAddressType = Optional[IpAddressType]
@@ -11,125 +11,130 @@ logger = logging.getLogger(__name__)
 
 class IpWareMeta:
     """
-    A class that handles meta data frm an HTTP request.
+    A class to manage metadata extracted from HTTP request headers, primarily for identifying
+    the client's IP address behind load balancers and proxies.
     """
 
     def __init__(
-        self,
-        precedence: Optional[Tuple[str, ...]] = None,
-        leftmost: bool = True,
+        self, precedence: Optional[Tuple[str, ...]] = None, leftmost: bool = True
     ) -> None:
-        self.precedence = precedence or (
-            "X_FORWARDED_FOR",  # Load balancers or proxies such as AWS ELB (default client is `left-most` [`<client>, <proxy1>, <proxy2>`])
-            "HTTP_X_FORWARDED_FOR",  # Similar to X_FORWARDED_TO
-            "HTTP_CLIENT_IP",  # Standard headers used by providers such as Amazon EC2, Heroku etc.
-            "HTTP_X_REAL_IP",  # Standard headers used by providers such as Amazon EC2, Heroku etc.
-            "HTTP_X_FORWARDED",  # Squid and others
-            "HTTP_X_CLUSTER_CLIENT_IP",  # Rackspace LB and Riverbed Stingray
-            "HTTP_FORWARDED_FOR",  # RFC 7239
-            "HTTP_FORWARDED",  # RFC 7239
-            "HTTP_CF_CONNECTING_IP",  # CloudFlare
-            "X-CLIENT-IP",  # Microsoft Azure
-            "X-REAL-IP",  # NGINX
-            "X-CLUSTER-CLIENT-IP",  # Rackspace Cloud Load Balancers
-            "X_FORWARDED",  # Squid
-            "FORWARDED_FOR",  # RFC 7239
-            "CF-CONNECTING-IP",  # CloudFlare
-            "TRUE-CLIENT-IP",  # CloudFlare Enterprise,
-            "FASTLY-CLIENT-IP",  # Firebase, Fastly
-            "FORWARDED",  # RFC 7239
-            "CLIENT-IP",  # Akamai and Cloudflare: True-Client-IP and Fastly: Fastly-Client-IP
-            "REMOTE_ADDR",  # Default
-        )
+        """
+        Initializes the metadata handler with a precedence list of HTTP headers and the position of the client IP.
+
+        :param precedence: A tuple of header names that define the order to check for a valid IP.
+                           If not provided, a default list of commonly used headers is applied.
+        :param leftmost: A boolean that indicates whether to use the left-most IP in the header
+                         when multiple IPs are listed (typically the case with proxies).
+        """
+        # Default precedence list of headers if none is provided
+        if precedence is None:
+            precedence = (
+                "X_FORWARDED_FOR",  # Common header for proxies, load balancers, like AWS ELB. Default to the left-most IP.
+                "HTTP_X_FORWARDED_FOR",  # Alternative header similar to `X_FORWARDED_FOR`.
+                "HTTP_CLIENT_IP",  # Header used by some providers like Amazon EC2, Heroku.
+                "HTTP_X_REAL_IP",  # Header used by some providers like Amazon EC2, Heroku.
+                "HTTP_X_FORWARDED",  # Used by Squid and similar software.
+                "HTTP_X_CLUSTER_CLIENT_IP",  # Used by Rackspace LB, Riverbed Stingray.
+                "HTTP_FORWARDED_FOR",  # Standard header defined by RFC 7239.
+                "HTTP_FORWARDED",  # Standard header defined by RFC 7239.
+                "HTTP_CF_CONNECTING_IP",  # Used by CloudFlare.
+                "X-CLIENT-IP",  # Used by Microsoft Azure.
+                "X-REAL-IP",  # Commonly used by NGINX.
+                "X-CLUSTER-CLIENT-IP",  # Used by Rackspace Cloud Load Balancers.
+                "X_FORWARDED",  # Used by Squid.
+                "FORWARDED_FOR",  # Standard header defined by RFC 7239.
+                "CF-CONNECTING-IP",  # Used by CloudFlare.
+                "TRUE-CLIENT-IP",  # Header for CloudFlare Enterprise.
+                "FASTLY-CLIENT-IP",  # Used by Fastly, Firebase.
+                "FORWARDED",  # Standard header defined by RFC 7239.
+                "CLIENT-IP",  # Used by Akamai, Cloudflare's True-Client-IP, and Fastly's Fastly-Client-IP.
+                "REMOTE_ADDR",  # The default IP address header (direct connection).
+            )
+
+        self.precedence = precedence
         self.leftmost = leftmost
 
 
 class IpWareIpAddress:
     """
-    A class that handles IP address data from an HTTP request.
+    A class for handling and parsing IP address data from HTTP requests.
     """
 
-    def extract_ipv4_only(self, ip_address: str) -> str:
+    def extract_ipv4(self, ip_address: str) -> str:
         """
-        Given an IPv4 address or address:port, it extracts the IP address
-        @param ip_str: IP address or address:port
-        @return: IP address
-        """
+        Extracts the IPv4 address from a given string that may include a port number.
 
+        Args:
+            ip_address (str): An IPv4 address possibly including a port (e.g., "192.168.1.1:8080").
+
+        Returns:
+            str: The IPv4 address without the port. Returns an empty string if input is None.
+        """
         if ip_address:
-            # handle ipv4 addresses with port
-            if ":" in ip_address:
-                ip_address = ip_address.split(":")[0]
-                return ip_address.strip()
-
-            return ip_address.strip()
-
+            return ip_address.split(":")[0].strip()
         return ""
 
-    def extract_ipv6_only(self, ip_address: str) -> str:
+    def extract_ipv6(self, ip_address: str) -> str:
         """
-        Given an IPv6 address or address:port, it extracts the IP address
-        @param ip_str: IP address or address:port
-        @return: IP address
+        Extracts the IPv6 address from a given string that may include a port number.
+
+        Args:
+            ip_address (str): An IPv6 address possibly including a port (e.g., "[2001:db8::1]:8080").
+
+        Returns:
+            str: The IPv6 address without brackets or port. Returns an empty string if input is None.
         """
+        if ip_address and "]:" in ip_address:
+            return ip_address.split("]:")[0].replace("[", "").strip()
+        return ip_address.strip() if ip_address else ""
 
-        if ip_address:
-            # handle ipv6 addresses with port
-            if "]:" in ip_address:
-                ip_address = ip_address.split("]:")[0]
-                ip_address = ip_address.replace("[", "")
-                return ip_address.strip()
-
-            return ip_address.strip()
-
-        return ""
-
-    def get_ip_object(
-        self,
-        ip_str: str,
-    ) -> OptionalIpAddressType:
+    def parse_ip_address(self, ip_str: str):
         """
-        Given an IP address or address:port, it parses the IP address
-        @param ip_str: IP address or address:port
-        @return: IP address of type IPv4Address or IPv6Address
-        """
+        Parses the given IP address string to an IPv4Address or IPv6Address object.
 
-        ip: OptionalIpAddressType = None
-        if ip_str:
+        Args:
+            ip_str (str): An IP address possibly including a port.
+
+        Returns:
+            ipaddress.IPv4Address|ipaddress.IPv6Address|None: The parsed IP object or None if the address is invalid.
+        """
+        try:
+            # First, try to parse as IPv6.
+            ipv6 = self.extract_ipv6(ip_str)
+            ip = ipaddress.IPv6Address(ipv6)
+            return ip.ipv4_mapped or ip
+        except ipaddress.AddressValueError:
             try:
-                # try to parse as IPv6 address with optional port
-                ipv6 = self.extract_ipv6_only(ip_str)
-                ip = ipaddress.IPv6Address(ipv6)
-                ip = ip.ipv4_mapped or ip
+                # If IPv6 parsing fails, try to parse as IPv4.
+                ipv4 = self.extract_ipv4(ip_str)
+                return ipaddress.IPv4Address(ipv4)
             except ipaddress.AddressValueError:
-                try:
-                    # try to parse as IPv4 address with optional port
-                    ipv4 = self.extract_ipv4_only(ip_str)
-                    ip = ipaddress.IPv4Address(ipv4)
-                except ipaddress.AddressValueError:
-                    # not a valid IP address, return None
-                    logger.info("Invalid ip address. {0}".format(ip_str))
-                    ip = None
-        return ip
+                # Log error if IP is invalid
+                # print(f"Invalid IP address: {ip_str}")
+                return None
 
     def get_ips_from_string(
         self,
         ip_str: str,
-    ) -> Optional[List[IpAddressType]]:
+        strict: bool = False,
+    ) -> Optional[List[Union[ipaddress.IPv4Address, ipaddress.IPv6Address]]]:
         """
-        Given a comma separated list of IP addresses or address:port, it parses the IP addresses
-        @param ip_str: comma separated list of IP addresses or address:port
-        @return: list of IP addresses of type IPv4Address or IPv6Address
-        """
-        ip_list: List[IpAddressType] = []
+        Parses a comma-separated list of IP addresses, each possibly including a port.
 
+        Args:
+            ip_str (str): A comma-separated list of IP addresses or address:port entries.
+            strict (bool): True to bail out on first invalid ip, False to skip invalid ip
+        Returns:
+            List[ipaddress.IPv4Address|ipaddress.IPv6Address]|None: A list of IP address objects or None if any IP is invalid.
+        """
+        ip_list = []
         for ip_address in ip_str.split(","):
-            ip = self.get_ip_object(ip_address.strip())
+            ip = self.parse_ip_address(ip_address.strip())
             if ip:
                 ip_list.append(ip)
             else:
-                # we have at least one invalid IP address, return empty list, instead
-                return None
+                if strict:
+                    return None
 
         if not self.leftmost:
             ip_list.reverse()
@@ -139,90 +144,101 @@ class IpWareIpAddress:
 
 class IpWareProxy:
     """
-    A class that handles proxy data from an HTTP request.
+    A class to handle proxy data from an HTTP request, including validating
+    proxy counts and trusted proxy lists.
     """
 
     def __init__(
-        self,
-        proxy_count: Optional[int] = None,
-        proxy_list: Optional[List[str]] = None,
+        self, proxy_count: Optional[int] = None, proxy_list: Optional[List[str]] = None
     ) -> None:
+        """
+        Initialize the IpWareProxy class with optional proxy count and proxy list.
+
+        Args:
+            proxy_count: The expected number of proxies, can be None if no specific count is enforced.
+            proxy_list: A list of partial IP addresses as trusted proxies, can be None.
+        """
+        if proxy_count is not None and proxy_count < 0:
+            raise ValueError("proxy_count must be non-negative")
         self.proxy_count = proxy_count
-        self.proxy_list = self._is_valid_proxy_trusted_list(proxy_list or [])
+        self.proxy_list = self._validate_proxy_list(proxy_list or [])
 
-    def _is_valid_proxy_trusted_list(self, proxy_list: Any) -> List[str]:
+    def _validate_proxy_list(self, proxy_list: List[str]) -> List[str]:
         """
-        Checks if the proxy list is a valid list of strings
-        @return: proxy list or raises an exception
+        Validates that the proxy list contains only strings.
+
+        Args:
+            proxy_list: A list of proxies.
+
+        Returns:
+            The proxy list if all items are valid strings.
+
+        Raises:
+            ValueError: If the proxy list is not a list of strings.
         """
-
-        if not isinstance(proxy_list, list):
-            raise ValueError("Parameter must be a list")
-        if not all(isinstance(x, str) for x in proxy_list):
-            raise ValueError("All elements in list must be strings")
-
+        if not all(isinstance(ip, str) for ip in proxy_list):
+            raise ValueError("All elements in the proxy list must be strings.")
         return proxy_list
 
-    def is_proxy_count_valid(
-        self, ip_list: List[IpAddressType], strict: bool = False
-    ) -> bool:
+    def is_proxy_count_valid(self, ip_list: List[str], strict: bool = False) -> bool:
         """
-        Checks if the proxy count is valid
-        @param ip_list: list of ip addresses
-        @param strict: if True, we must have exactly proxy_count proxies, including `0` proxies
-        @return: True if the proxy count is valid, False otherwise
+        Validates the proxy count against a list of IP addresses.
+
+        Args:
+            ip_list: A list of IP addresses from the request headers.
+            strict: If True, the number of proxies must exactly match the proxy_count.
+
+        Returns:
+            True if the proxy count is valid, False otherwise.
         """
-        # No proxy count check is required
         if self.proxy_count is None:
-            return True
+            return True  # No proxy count specified, so always valid.
 
-        ip_count: int = len(ip_list)
-
+        ip_count = len(ip_list)
         if strict:
-            # our first proxy takes the last ip address and treats it as client ip
-            return self.proxy_count == ip_count - 1
+            return ip_count - 1 == self.proxy_count
+            # Exact match required, excluding client's own IP.
 
-        # the client could have gone through their own proxy and included extra ips
-        # client could be sending in the header: X-Forwarded-For: <fake_ip>, <client_ip>
-        return ip_count - 1 > self.proxy_count
+        return ip_count - 1 >= self.proxy_count
+        # Allow more proxies than the count, excluding client's IP.
 
     def is_proxy_trusted_list_valid(
-        self,
-        ip_list: List[IpAddressType],
-        strict: bool = False,
+        self, ip_list: List[str], strict: bool = False
     ) -> bool:
         """
-        Checks if the proxy list is valid (all proxies are in the proxy_list)
-        @param ip_list: list of ip addresses
-        @param strict: if True, we must have exactly proxy_count proxies
-        @return: client's best match ip address or False
+        Checks if all proxies in the incoming list are trusted based on the proxy_list.
+
+        Args:
+            ip_list: A list of IP addresses from the request headers.
+            strict: If True, the number of proxies must exactly match the length of proxy_list.
+
+        Returns:
+            True if all proxies are trusted, False otherwise.
         """
         if not self.proxy_list:
-            return True
+            return True  # No specific proxies to trust, so always valid.
 
         ip_count = len(ip_list)
         proxy_list_count = len(self.proxy_list)
 
-        # in strict mode, total ip count must be 1 more than proxy count
         if strict and ip_count - 1 != proxy_list_count:
-            return False
+            return False  # Strict mode: Exact count match required.
 
-        # total ip count (client + proxies) must be more than proxy count
         if ip_count - 1 < proxy_list_count:
-            return False
+            return False  # Not enough IPs to match the trusted proxies.
 
-        # start from the end, slice the incoming ip list to the same length as the trusted proxy list
-        ip_list_slice = ip_list[-proxy_list_count:]
-        for index, value in enumerate(ip_list_slice):
-            if not str(value).startswith(self.proxy_list[index]):
-                return False
-
-        return True
+        # Verify each proxy against the trusted list by comparing each corresponding element.
+        return all(
+            str(ip).startswith(trusted_proxy_pattern)
+            for ip, trusted_proxy_pattern in zip(
+                ip_list[-proxy_list_count:], self.proxy_list
+            )
+        )
 
 
 class IpWare(IpWareMeta, IpWareProxy, IpWareIpAddress):
     """
-    A class that makes best effort to determine the client's IP address.
+    A class that makes a best effort to determine the client's IP address.
     """
 
     def __init__(
@@ -237,24 +253,23 @@ class IpWare(IpWareMeta, IpWareProxy, IpWareIpAddress):
 
     def get_meta_value(self, meta: Dict[str, str], key: str) -> str:
         """
-        Given a key, it returns a cleaned up version of the value
-        @param key: the key to lookup
-        @return: the value of the key or empty string
+        Returns a cleaned up version of the value for a given key.
+        @param key: The key to look up.
+        @return: The value of the key or an empty string if the key is not found.
         """
         meta = meta or {}
         return meta.get(key, meta.get(key.replace("_", "-"), "")).strip()
 
     def get_meta_values(self, meta: Dict[str, str]) -> List[str]:
         """
-        Given a list of keys, it returns a list of cleaned up values
-        @return: a list of values
+        Returns a list of cleaned up values for the keys defined in 'precedence'.
+        @return: A list of values.
         """
         meta_list: List[str] = []
         for key in self.precedence:
             value = self.get_meta_value(meta, key).strip()
             if value:
                 meta_list.append(value)
-
         return meta_list
 
     def get_client_ip(
@@ -265,13 +280,11 @@ class IpWare(IpWareMeta, IpWareProxy, IpWareIpAddress):
         """
         Returns the client's IP address.
         """
-
         loopback_list: List[IpAddressType] = []
         private_list: List[OptionalIpAddressType] = []
 
         for ip_str in self.get_meta_values(meta):
-
-            ip_list = self.get_ips_from_string(ip_str)
+            ip_list = self.get_ips_from_string(ip_str, strict)
             if not ip_list:
                 continue
 
@@ -283,64 +296,40 @@ class IpWare(IpWareMeta, IpWareProxy, IpWareIpAddress):
             if not proxy_list_validated:
                 continue
 
-            client_ip, trusted_route = self.get_best_ip(
-                ip_list, proxy_count_validated, proxy_list_validated
-            )
+            client_ip, trusted_route = self.get_best_ip(ip_list)
+            if client_ip is not None:
+                if client_ip.is_global:
+                    return client_ip, trusted_route
+                if client_ip.is_loopback:
+                    loopback_list.append(client_ip)
+                else:
+                    private_list.append(client_ip)
 
-            # we found a global ip, return it
-            if client_ip is not None and client_ip.is_global:
-                return client_ip, trusted_route
-
-            # we found a private ip, save it
-            if client_ip is not None and client_ip.is_loopback:
-                loopback_list.append(client_ip)
-            else:
-                # if not global (public) or loopback (local), we treat it asd private
-                private_list.append(client_ip)
-
-        # we have not been able to locate a global ip
-        # it could be the server is running on the intranet
-        # we will return the first private ip we found
         if private_list:
             return private_list[0], False
-
-        # we have not been able to locate a global ip, nor a private ip
-        # it could be the server is running on a loopback address serving local requests
         if loopback_list:
             return loopback_list[0], False
-
-        # we were unable to find any ip address
         return None, False
 
     def get_best_ip(
         self,
         ip_list: List[IpAddressType],
-        proxy_count_validated: bool = True,
-        proxy_list_validated: bool = True,
     ) -> Tuple[OptionalIpAddressType, bool]:
         """
-        Returns the best possible ip for the client.
+        Determines the best possible IP address for the client from a list of IP addresses.
         """
-
         if not ip_list:
-            logger.warning("Invalid ip list provided.")
+            logger.warning("Invalid IP list provided.")
             return None, False
 
-        # the incoming ips match our trusted proxy list
-        if len(self.proxy_list) > 0 and proxy_list_validated:
+        if self.proxy_list and len(self.proxy_list) > 0:
             best_client_ip_index = len(self.proxy_list) + 1
             best_client_ip = ip_list[-best_client_ip_index]
             return best_client_ip, True
 
-        # the incoming ips match our proxy count
-        if (
-            self.proxy_count is not None
-            and self.proxy_count > 0
-            and proxy_count_validated
-        ):
+        if self.proxy_count is not None:
             best_client_ip_index = self.proxy_count + 1
             best_client_ip = ip_list[-best_client_ip_index]
             return best_client_ip, True
 
-        # we don't track proxy related info, so we just return the first ip
         return ip_list[0], False

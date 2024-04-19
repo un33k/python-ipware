@@ -69,14 +69,22 @@ class TestIPv6Common(unittest.TestCase):
             "X_FORWARDED_FOR": "unknown, 3ffe:1900:4545:3:200:f8ff:fe21:67cf, 2606:4700:4700::1111, 2001:4860:4860::8888",
         }
         r = self.ipware.get_client_ip(meta)
+        self.assertEqual(r, (IPv6Address("3ffe:1900:4545:3:200:f8ff:fe21:67cf"), False))
+
+    def test_error_only_strict(self):
+        meta = {
+            "X_FORWARDED_FOR": "unknown, 3ffe:1900:4545:3:200:f8ff:fe21:67cf, 2606:4700:4700::1111, 2001:4860:4860::8888",
+        }
+        r = self.ipware.get_client_ip(meta, strict=True)
         self.assertEqual(r, (None, False))
 
     def test_first_error_bailout(self):
         meta = {
             "HTTP_X_FORWARDED_FOR": "unknown, 3ffe:1900:4545:3:200:f8ff:fe21:67cf, 2606:4700:4700::1111, 2001:4860:4860::8888",
+            "X_FORWARDED_FOR": "2606:4700:4700::1111, 2001:4860:4860::8888",
         }
         r = self.ipware.get_client_ip(meta)
-        self.assertEqual(r, (None, False))
+        self.assertEqual(r, (IPv6Address("2606:4700:4700::1111"), False))
 
     def test_with_error_best_match(self):
         meta = {
