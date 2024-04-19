@@ -1,3 +1,8 @@
+## 3.0.0
+
+Fix:
+- Release major version, as there is a possibility of api change causing minimal backward incompatibly
+
 ## 2.0.5
 
 Enhance:

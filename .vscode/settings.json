@@ -4,6 +4,7 @@
     "cmdclass",
     "FASTLY",
     "getattr",
+    "imcomaptblity",
     "ipware",
     "multicast",
     "Neekman",
