@@ -117,7 +117,7 @@ class IpWareIpAddress:
         self,
         ip_str: str,
         strict: bool = False,
-    ) -> Optional[List[ipaddress.IPv4Address | ipaddress.IPv6Address]]:
+    ) -> Optional[List[Union[ipaddress.IPv4Address, ipaddress.IPv6Address]]]:
         """
         Parses a comma-separated list of IP addresses, each possibly including a port.
 
@@ -300,7 +300,7 @@ class IpWare(IpWareMeta, IpWareProxy, IpWareIpAddress):
             if client_ip is not None:
                 if client_ip.is_global:
                     return client_ip, trusted_route
-                elif client_ip.is_loopback:
+                if client_ip.is_loopback:
                     loopback_list.append(client_ip)
                 else:
                     private_list.append(client_ip)
