@@ -86,10 +86,18 @@ class TestIPv4Common(unittest.TestCase):
         r = self.ipware.get_client_ip(meta, strict=True)
         self.assertEqual(r, (None, False))
 
+    def test_error_only_first_strict(self):
+        meta = {
+            "X_FORWARDED_FOR": "177.139.233.138, 198.84.193.157, 198.84.193.158",
+            "HTTP_X_FORWARDED_FOR": "unknown, 177.139.233.139, 198.84.193.157, 198.84.193.158",
+        }
+        r = self.ipware.get_client_ip(meta, strict=True)
+        self.assertEqual(r, (IPv4Address("177.139.233.138"), False))
+
     def test_error_first(self):
         meta = {
-            "HTTP_X_FORWARDED_FOR": "unknown, 177.139.233.139, 198.84.193.157, 198.84.193.158",
-            "X_FORWARDED_FOR": "177.139.233.138, 198.84.193.157, 198.84.193.158",
+            "X_FORWARDED_FOR": "unknown, 177.139.233.138, 198.84.193.157, 198.84.193.158",
+            "HTTP_X_FORWARDED_FOR": "177.139.233.139, 198.84.193.157, 198.84.193.158",
         }
         r = self.ipware.get_client_ip(meta)
         self.assertEqual(r, (IPv4Address("177.139.233.138"), False))
