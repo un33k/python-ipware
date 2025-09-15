@@ -46,6 +46,7 @@ class IpWareMeta:
                 "CF-CONNECTING-IP",  # Used by CloudFlare.
                 "TRUE-CLIENT-IP",  # Header for CloudFlare Enterprise.
                 "FASTLY-CLIENT-IP",  # Used by Fastly, Firebase.
+                "FLY-CLIENT-IP",  # Used by Fly.io
                 "FORWARDED",  # Standard header defined by RFC 7239.
                 "CLIENT-IP",  # Used by Akamai, Cloudflare's True-Client-IP, and Fastly's Fastly-Client-IP.
                 "REMOTE_ADDR",  # The default IP address header (direct connection).
