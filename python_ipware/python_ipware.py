@@ -29,6 +29,9 @@ class IpWareMeta:
         # Default precedence list of headers if none is provided
         if precedence is None:
             precedence = (
+                "TRUE-CLIENT-IP",  # Header for CloudFlare Enterprise.
+                "HTTP_CF_CONNECTING_IP",  # Used by CloudFlare.
+                "CF-CONNECTING-IP",  # Used by CloudFlare.
                 "X_FORWARDED_FOR",  # Common header for proxies, load balancers, like AWS ELB. Default to the left-most IP.
                 "HTTP_X_FORWARDED_FOR",  # Alternative header similar to `X_FORWARDED_FOR`.
                 "HTTP_CLIENT_IP",  # Header used by some providers like Amazon EC2, Heroku.
@@ -37,14 +40,11 @@ class IpWareMeta:
                 "HTTP_X_CLUSTER_CLIENT_IP",  # Used by Rackspace LB, Riverbed Stingray.
                 "HTTP_FORWARDED_FOR",  # Standard header defined by RFC 7239.
                 "HTTP_FORWARDED",  # Standard header defined by RFC 7239.
-                "HTTP_CF_CONNECTING_IP",  # Used by CloudFlare.
                 "X-CLIENT-IP",  # Used by Microsoft Azure.
                 "X-REAL-IP",  # Commonly used by NGINX.
                 "X-CLUSTER-CLIENT-IP",  # Used by Rackspace Cloud Load Balancers.
                 "X_FORWARDED",  # Used by Squid.
                 "FORWARDED_FOR",  # Standard header defined by RFC 7239.
-                "CF-CONNECTING-IP",  # Used by CloudFlare.
-                "TRUE-CLIENT-IP",  # Header for CloudFlare Enterprise.
                 "FASTLY-CLIENT-IP",  # Used by Fastly, Firebase.
                 "FORWARDED",  # Standard header defined by RFC 7239.
                 "CLIENT-IP",  # Used by Akamai, Cloudflare's True-Client-IP, and Fastly's Fastly-Client-IP.
