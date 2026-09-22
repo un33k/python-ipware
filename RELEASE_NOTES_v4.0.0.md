@@ -4,9 +4,11 @@
 > release body for tag `v4.0.0`.
 
 A major release that introduces a pluggable algorithm router and modernizes the
-packaging. The new **modern** engine is the default and is a verified behavioral
-superset of the v3 algorithm — the full v3 test suite passes against it. The
-**legacy** v3 algorithm is preserved byte-for-byte as an explicit escape hatch.
+packaging. The new **modern** engine is the default. On well-formed headers it
+returns the same result as v3 — the full v3 test suite and a legacy-vs-modern
+differential test pass against it. It differs only on malformed values (quoted
+addresses are accepted; `1.2.3.4:80:90` is rejected). The **legacy** v3
+algorithm is preserved byte-for-byte as an explicit escape hatch.
 
 ## Highlights
 
