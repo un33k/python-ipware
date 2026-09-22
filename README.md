@@ -97,12 +97,29 @@ ip, trusted_route = ipw.get_client_ip(meta, strict=False)
 | Output | Description |
 | --- | --- |
 | `ip` | `IPv4Address`, `IPv6Address`, or `None` |
-| `trusted_route` | `True` when `proxy_count` or `proxy_list` was configured and matched |
+| `trusted_route` | `True` when `proxy_count` or `proxy_list` was configured and matched, for any returned IP (v3 only set it for public IPs) |
 
 ### Selection rules
 
-Headers are checked in precedence order. The first **public** IP found wins; otherwise the first
-**private** IP; otherwise the first **loopback** IP; otherwise `None`.
+Headers are checked in precedence order. Every address is ranked:
+
+| Rank | Addresses |
+| --- | --- |
+| 1. public | globally routable |
+| 2. private | RFC 1918, IPv6 ULA, CGNAT `100.64.0.0/10`, documentation ranges |
+| 3. link-local | `169.254.0.0/16`, `fe80::/10` |
+| 4. loopback | `127.0.0.0/8`, `::1` |
+| never returned | `0.0.0.0`, `::`, multicast, broadcast, reserved |
+
+The first **public** IP wins. If none is found, the best-ranked IP wins, and the earlier header
+wins a tie.
+
+Within one header, the client entry depends on your proxy settings:
+
+- **`proxy_count` / `proxy_list` set:** the entry just before your trusted proxies, exactly as in v3.
+- **Neither set:** the first public entry in the chain, not only the first entry. So
+  `10.0.0.1, 177.139.233.139` yields `177.139.233.139` (v3 returned `10.0.0.1`). With
+  `leftmost=False` the chain is scanned from the right.
 
 ```mermaid
 flowchart TD
@@ -115,13 +132,19 @@ flowchart TD
     E -->|yes| F["Pick the client entry"]
     F --> G{"Public IP?"}
     G -->|yes| H["Return (ip, trusted_route)"]
-    G -->|no| I["Keep as private or loopback fallback"]
+    G -->|no| I["Keep if it outranks the current fallback"]
     I --> B
-    B -->|no headers left| J["Return first private, else loopback, else None"]
+    B -->|no headers left| J["Return the best fallback, else None"]
 ```
 
+The legacy engine keeps v3's rules. A combination suite checks that the modern engine never returns a
+worse address than legacy for the same input.
+
 Ports are stripped (`1.2.3.4:8080`, `[2001:db8::1]:443`) and IPv4-mapped IPv6 addresses
-(`::ffff:1.2.3.4`) are returned as plain IPv4.
+(`::ffff:1.2.3.4`) are returned as plain IPv4. RFC 7239 `Forwarded` elements are read by their
+`for=` value (`for="[2001:db8::1]:4711";proto=https`). Malformed tokens such as `[::1`,
+`[::1]junk`, or `1.2.3.4:abc` are rejected rather than truncated. Header names match
+case-insensitively, so lowercase keys (AWS Lambda / API Gateway v2) work too.
 
 ## Default header precedence
 
@@ -133,7 +156,7 @@ Ports are stripped (`1.2.3.4:8080`, `[2001:db8::1]:443`) and IPv4-mapped IPv6 ad
     "HTTP_X_REAL_IP",
     "HTTP_X_FORWARDED",          # Squid
     "HTTP_X_CLUSTER_CLIENT_IP",  # Rackspace LB, Riverbed Stingray
-    "HTTP_FORWARDED_FOR",        # RFC 7239
+    "HTTP_FORWARDED_FOR",        # de facto variant
     "HTTP_FORWARDED",            # RFC 7239
     "HTTP_CF_CONNECTING_IP",     # Cloudflare
     "HTTP_TRUE_CLIENT_IP",       # Cloudflare Enterprise, Akamai
@@ -151,9 +174,21 @@ Ports are stripped (`1.2.3.4:8080`, `[2001:db8::1]:443`) and IPv4-mapped IPv6 ad
     "FLY-CLIENT-IP",
     "FORWARDED",
     "CLIENT-IP",
+    # added after 4.0.0 — always below every earlier entry, above REMOTE_ADDR
+    "HTTP_X_CLIENT_IP",          # Microsoft Azure (Django/WSGI form)
+    "X-APPENGINE-USER-IP",       # Google App Engine (raw form)
+    "HTTP_X_AZURE_CLIENTIP",     # Azure Front Door
+    "X-AZURE-CLIENTIP",
+    "HTTP_DO_CONNECTING_IP",     # DigitalOcean App Platform
+    "DO-CONNECTING-IP",
+    "HTTP_X_ENVOY_EXTERNAL_ADDRESS",  # Envoy / Istio
+    "X-ENVOY-EXTERNAL-ADDRESS",
     "REMOTE_ADDR",               # direct connection
 )
 ```
+
+Headers released earlier never move. New ones are added only just above `REMOTE_ADDR`, so an
+upgrade can never let a new header outrank one that already resolved your requests.
 
 Narrow it to what your infrastructure actually sets:
 

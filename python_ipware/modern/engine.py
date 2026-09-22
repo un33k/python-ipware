@@ -1,23 +1,28 @@
 """The modern python-ipware engine.
 
-Behavior-compatible with the v3 algorithm on the essentials, but cleaner and
-hardened:
+Same inputs, outputs and proxy semantics as v3, with a better best-match:
 
-* Superset header precedence (adds True-Client-IP, Fastly, App Engine, Azure).
-* Robust IPv6 / bracketed-port / IPv4-mapped parsing.
-* Same "best IP" fallback ladder: prefer a globally routable address; else the
-  first private; else loopback.
+* Superset header precedence (Forwarded parsing, more CDN / edge headers).
+* Robust IPv6 / bracketed-port / IPv4-mapped / RFC 7239 parsing.
+* Explicit ranking: global > private > link-local > loopback. Unspecified,
+  multicast, broadcast and reserved addresses are never returned.
+* Without trusted-proxy config, the first *globally routable* hop of a chain
+  wins, not just the first hop, so ``10.0.0.1, 177.139.233.139`` yields the
+  public address. With ``proxy_count`` / ``proxy_list`` the client position is
+  fixed by the config, exactly as in v3.
 * Same ``strict`` semantics for proxy_count / proxy_list validation.
 * Trusted-proxy matching anchored to the end of the chain. Each ``proxy_list``
   entry is either a CIDR network (``"100.64.0.0/10"``, ``"fd7a:115c:a1e0::/48"``)
   matched by real network membership, or a plain string prefix (``"10.1."``).
+* ``trusted_route`` is True whenever the returned IP came from a chain that
+  passed the configured proxy validation, whatever its tier.
 """
 
 import ipaddress
 from typing import Optional, Union
 
 from .defaults import DEFAULT_PRECEDENCE
-from .parsers import IpAddressType, split_proxy_chain
+from .parsers import TIER_GLOBAL, TIER_REJECT, IpAddressType, ip_tier, split_proxy_chain
 
 OptionalIp = Optional[IpAddressType]
 IpNetworkType = Union[ipaddress.IPv4Network, ipaddress.IPv6Network]
@@ -55,23 +60,52 @@ class ModernIpWare:
             raise ValueError("proxy_count must be non-negative")
         if proxy_list is not None and not all(isinstance(p, str) for p in proxy_list):
             raise ValueError("All elements in the proxy list must be strings.")
+        proxy_list = [p.strip() for p in proxy_list or []]
+        # An empty prefix matches every address, which would mark any spoofed
+        # chain as trusted. It is always a misconfiguration (e.g. a trailing
+        # comma in an env var), so fail loudly instead.
+        if any(not p for p in proxy_list):
+            raise ValueError("proxy_list entries must not be empty.")
 
         self.precedence = precedence or DEFAULT_PRECEDENCE
         self.leftmost = leftmost
         self.proxy_count = proxy_count
-        self.proxy_list = list(proxy_list or [])
+        self.proxy_list = proxy_list
         self._proxy_matchers = [_compile_proxy_matcher(p) for p in self.proxy_list]
 
     # -- meta access --------------------------------------------------------
 
-    def _get_meta_value(self, meta: dict[str, str], key: str) -> str:
+    @staticmethod
+    def _fold(key: str) -> str:
+        return key.upper().replace("-", "_")
+
+    def _get_meta_value(
+        self,
+        meta: dict[str, str],
+        key: str,
+        folded: Optional[dict[str, object]] = None,
+    ) -> str:
         meta = meta or {}
-        return meta.get(key, meta.get(key.replace("_", "-"), "")).strip()
+        value = meta.get(key)
+        if value is None:
+            value = meta.get(key.replace("_", "-"))
+        # Exact keys win; the folded view only fills gaps, so lowercase keys
+        # (AWS Lambda / API Gateway v2, raw ASGI dicts) still match.
+        if value is None and folded is not None:
+            value = folded.get(self._fold(key))
+        # Header values are text; anything else (None, bytes, lists from a
+        # misbehaving adapter) is ignored rather than crashing the lookup.
+        return value.strip() if isinstance(value, str) else ""
 
     def _get_meta_values(self, meta: dict[str, str]) -> list[str]:
+        meta = meta or {}
+        folded: dict[str, object] = {}
+        for k, v in meta.items():
+            if isinstance(k, str):
+                folded.setdefault(self._fold(k), v)
         values: list[str] = []
         for key in self.precedence:
-            value = self._get_meta_value(meta, key)
+            value = self._get_meta_value(meta, key, folded)
             if value:
                 values.append(value)
         return values
@@ -103,22 +137,32 @@ class ModernIpWare:
     # -- selection ----------------------------------------------------------
 
     def _best_from_chain(self, chain: list[IpAddressType]) -> tuple[OptionalIp, bool]:
-        # ``chain`` is already client-first (see get_client_ip).
-        if not chain:
-            return None, False
+        # ``chain`` is already client-first (see get_client_ip) and non-empty.
         if self.proxy_list:
             return chain[-(len(self.proxy_list) + 1)], True
         if self.proxy_count is not None:
             return chain[-(self.proxy_count + 1)], True
-        return chain[0], False
+        # No trusted-proxy config, so no position in the chain is verified.
+        # Take the first globally routable hop; otherwise the best-ranked hop,
+        # earliest on ties. This never picks a worse address than v3's chain[0].
+        best: OptionalIp = None
+        best_tier = TIER_REJECT
+        for ip in chain:
+            tier = ip_tier(ip)
+            if tier == TIER_GLOBAL:
+                return ip, False
+            if tier > best_tier:
+                best, best_tier = ip, tier
+        return best, False
 
     # -- public API ---------------------------------------------------------
 
-    def get_client_ip(
-        self, meta: dict[str, str], strict: bool = False
-    ) -> tuple[OptionalIp, bool]:
-        loopback: list[IpAddressType] = []
-        private: list[IpAddressType] = []
+    def get_client_ip(self, meta: dict[str, str], strict: bool = False) -> tuple[OptionalIp, bool]:
+        # Best non-global candidate so far. Strictly-greater comparison keeps
+        # the earliest header on ties, preserving header precedence.
+        fallback: OptionalIp = None
+        fallback_tier = TIER_REJECT
+        fallback_trusted = False
 
         for raw in self._get_meta_values(meta):
             chain = split_proxy_chain(raw, strict)
@@ -136,15 +180,10 @@ class ModernIpWare:
             ip, trusted = self._best_from_chain(chain)
             if ip is None:
                 continue
-            if ip.is_global:
+            tier = ip_tier(ip)
+            if tier == TIER_GLOBAL:
                 return ip, trusted
-            if ip.is_loopback:
-                loopback.append(ip)
-            else:
-                private.append(ip)
+            if tier > fallback_tier:
+                fallback, fallback_tier, fallback_trusted = ip, tier, trusted
 
-        if private:
-            return private[0], False
-        if loopback:
-            return loopback[0], False
-        return None, False
+        return fallback, fallback_trusted
