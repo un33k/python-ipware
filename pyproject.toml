@@ -55,9 +55,14 @@ Issues = "https://github.com/un33k/python-ipware/issues"
 Changelog = "https://github.com/un33k/python-ipware/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
-dev = [
+# Lint + tests only: installs cleanly on every interpreter, including PyPy.
+test = [
     "ruff==0.16.8",  # pinned so new lint rules cannot break CI unannounced
     "coverage[toml]",
+]
+# Full maintainer toolchain (adds packaging tools, whose deps don't build on PyPy).
+dev = [
+    "python-ipware[test]",
     "build",
     "twine",
 ]
