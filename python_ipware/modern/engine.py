@@ -8,15 +8,39 @@ hardened:
 * Same "best IP" fallback ladder: prefer a globally routable address; else the
   first private; else loopback.
 * Same ``strict`` semantics for proxy_count / proxy_list validation.
-* Trusted-proxy matching by prefix, anchored to the end of the chain.
+* Trusted-proxy matching anchored to the end of the chain. Each ``proxy_list``
+  entry is either a CIDR network (``"100.64.0.0/10"``, ``"fd7a:115c:a1e0::/48"``)
+  matched by real network membership, or a plain string prefix (``"10.1."``).
 """
 
-from typing import Optional
+import ipaddress
+from typing import Optional, Union
 
 from .defaults import DEFAULT_PRECEDENCE
 from .parsers import IpAddressType, split_proxy_chain
 
 OptionalIp = Optional[IpAddressType]
+IpNetworkType = Union[ipaddress.IPv4Network, ipaddress.IPv6Network]
+ProxyMatcher = Union[str, IpNetworkType]
+
+
+def _compile_proxy_matcher(pattern: str) -> ProxyMatcher:
+    """CIDR entries become networks; anything else stays a string prefix."""
+    if "/" not in pattern:
+        return pattern
+    try:
+        # strict=False accepts host bits set, e.g. "10.0.0.5/24" -> 10.0.0.0/24.
+        return ipaddress.ip_network(pattern.strip(), strict=False)
+    except ValueError as exc:
+        msg = f"Invalid CIDR in proxy_list: {pattern!r}"
+        raise ValueError(msg) from exc
+
+
+def _proxy_matches(ip: IpAddressType, matcher: ProxyMatcher) -> bool:
+    if isinstance(matcher, str):
+        return str(ip).startswith(matcher)
+    # Membership across IP versions is simply False, never an error.
+    return ip.version == matcher.version and ip in matcher
 
 
 class ModernIpWare:
@@ -36,6 +60,7 @@ class ModernIpWare:
         self.leftmost = leftmost
         self.proxy_count = proxy_count
         self.proxy_list = list(proxy_list or [])
+        self._proxy_matchers = [_compile_proxy_matcher(p) for p in self.proxy_list]
 
     # -- meta access --------------------------------------------------------
 
@@ -69,10 +94,10 @@ class ModernIpWare:
             return False
         if (len(chain) - 1) < count:
             return False
-        # Compare the trailing proxies against the trusted prefixes in order.
+        # Compare the trailing proxies against the trusted entries in order.
         return all(
-            str(ip).startswith(pattern)
-            for ip, pattern in zip(chain[-count:], self.proxy_list)
+            _proxy_matches(ip, matcher)
+            for ip, matcher in zip(chain[-count:], self._proxy_matchers)
         )
 
     # -- selection ----------------------------------------------------------

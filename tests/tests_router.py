@@ -1,3 +1,4 @@
+import ipaddress
 import logging
 import unittest
 from typing import ClassVar
@@ -61,6 +62,67 @@ class TestModernHardening(unittest.TestCase):
     def test_bracketed_ipv6_with_port(self):
         ip, _ = IpWare().get_client_ip({"REMOTE_ADDR": "[2001:db8::1]:443"})
         self.assertEqual(str(ip), "2001:db8::1")
+
+
+class TestModernFlyHeader(unittest.TestCase):
+    """Fly.io support, suggested by @mdalp in #23."""
+
+    def test_fly_client_ip_django_style(self):
+        ip, _ = IpWare().get_client_ip({"HTTP_FLY_CLIENT_IP": "203.0.113.13"})
+        self.assertEqual(str(ip), "203.0.113.13")
+
+    def test_fly_client_ip_raw_header(self):
+        ip, _ = IpWare().get_client_ip({"FLY-CLIENT-IP": "203.0.113.14"})
+        self.assertEqual(str(ip), "203.0.113.14")
+
+
+class TestModernCidrProxyList(unittest.TestCase):
+    """CIDR entries in proxy_list, requested by @griffi-gh in #26."""
+
+    def test_ipv4_cidr_trusted(self):
+        ipw = IpWare(proxy_list=["100.64.0.0/10"])
+        meta = {"HTTP_X_FORWARDED_FOR": "177.139.233.139, 100.100.1.2"}
+        self.assertEqual(ipw.get_client_ip(meta), (ipaddress.ip_address("177.139.233.139"), True))
+
+    def test_ipv4_cidr_outside_rejected(self):
+        ipw = IpWare(proxy_list=["100.64.0.0/10"])
+        meta = {"HTTP_X_FORWARDED_FOR": "177.139.233.139, 100.128.0.1"}
+        self.assertEqual(ipw.get_client_ip(meta), (None, False))
+
+    def test_cidr_is_not_a_string_prefix(self):
+        # "10.1.0.0/16" must not match 10.10.x.x the way the prefix "10.1" would.
+        ipw = IpWare(proxy_list=["10.1.0.0/16"])
+        meta = {"HTTP_X_FORWARDED_FOR": "177.139.233.139, 10.10.0.1"}
+        self.assertEqual(ipw.get_client_ip(meta), (None, False))
+
+    def test_ipv6_cidr_trusted(self):
+        ipw = IpWare(proxy_list=["fd7a:115c:a1e0::/48"])
+        meta = {"HTTP_X_FORWARDED_FOR": "2606:4700::1, fd7a:115c:a1e0:ab12::1"}
+        ip, trusted = ipw.get_client_ip(meta)
+        self.assertEqual(str(ip), "2606:4700::1")
+        self.assertTrue(trusted)
+
+    def test_cross_version_never_matches(self):
+        ipw = IpWare(proxy_list=["fd7a:115c:a1e0::/48"])
+        meta = {"HTTP_X_FORWARDED_FOR": "177.139.233.139, 100.100.1.2"}
+        self.assertEqual(ipw.get_client_ip(meta), (None, False))
+
+    def test_mixed_cidr_and_prefix(self):
+        ipw = IpWare(proxy_list=["198.84.", "100.64.0.0/10"])
+        meta = {"HTTP_X_FORWARDED_FOR": "177.139.233.139, 198.84.193.157, 100.100.1.2"}
+        ip, trusted = ipw.get_client_ip(meta, strict=True)
+        self.assertEqual(str(ip), "177.139.233.139")
+        self.assertTrue(trusted)
+
+    def test_invalid_cidr_raises(self):
+        with self.assertRaises(ValueError):
+            IpWare(proxy_list=["300.1.0.0/16"])
+
+    def test_legacy_unchanged(self):
+        # Legacy is frozen: CIDR text is still treated as a literal prefix there.
+        ipw = IpWare(algorithm="legacy", proxy_list=["100.64.0.0/10"])
+        meta = {"HTTP_X_FORWARDED_FOR": "177.139.233.139, 100.100.1.2"}
+        self.assertEqual(ipw.get_client_ip(meta), (None, False))
 
 
 class TestModernRightmost(unittest.TestCase):

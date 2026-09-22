@@ -80,7 +80,7 @@ IpWare(
     precedence=None,     # tuple of header keys to check, in order
     leftmost=True,       # client is the left-most IP in the chain
     proxy_count=None,    # expected number of proxies in front of your server
-    proxy_list=None,     # trusted proxy IP prefixes
+    proxy_list=None,     # trusted proxies: CIDR networks or IP prefixes
 )
 
 ip, trusted_route = ipw.get_client_ip(meta, strict=False)
@@ -91,7 +91,7 @@ ip, trusted_route = ipw.get_client_ip(meta, strict=False)
 | `precedence` | Header keys to search, top to bottom. Defaults to the list below. |
 | `leftmost` | `True` (default) follows the de-facto `client, proxy1, proxy2` order. Use `False` only for networks that put the client right-most. |
 | `proxy_count` | Number of proxies expected after the client. `0` is valid; `None` disables the check. |
-| `proxy_list` | Trusted proxy prefixes, e.g. `["10.1.", "198.84.193.157"]`, matched against the proxies nearest your server. |
+| `proxy_list` | Trusted proxies nearest your server, one entry per hop. Each entry is a CIDR network (`"100.64.0.0/10"`, `"fd7a:115c:a1e0::/48"`) or a plain IP prefix (`"10.1."`, `"198.84.193.157"`). |
 | `strict` | `False`: at least `proxy_count` / `proxy_list` proxies. `True`: exactly that many — extra or invalid entries reject the header. |
 
 | Output | Description |
@@ -138,6 +138,7 @@ Ports are stripped (`1.2.3.4:8080`, `[2001:db8::1]:443`) and IPv4-mapped IPv6 ad
     "HTTP_CF_CONNECTING_IP",     # Cloudflare
     "HTTP_TRUE_CLIENT_IP",       # Cloudflare Enterprise, Akamai
     "HTTP_FASTLY_CLIENT_IP",     # Fastly, Firebase
+    "HTTP_FLY_CLIENT_IP",        # Fly.io
     "HTTP_X_APPENGINE_USER_IP",  # Google App Engine
     "X-CLIENT-IP",               # Microsoft Azure
     "X-REAL-IP",                 # NGINX
@@ -147,6 +148,7 @@ Ports are stripped (`1.2.3.4:8080`, `[2001:db8::1]:443`) and IPv4-mapped IPv6 ad
     "CF-CONNECTING-IP",
     "TRUE-CLIENT-IP",
     "FASTLY-CLIENT-IP",
+    "FLY-CLIENT-IP",
     "FORWARDED",
     "CLIENT-IP",
     "REMOTE_ADDR",               # direct connection
@@ -159,6 +161,14 @@ Narrow it to what your infrastructure actually sets:
 ipw = IpWare(precedence=("HTTP_X_FORWARDED_FOR", "REMOTE_ADDR"))
 ```
 
+If **all** your traffic comes through a CDN, put its header first. Only do this when the app is not
+reachable directly, because clients can send these headers themselves:
+
+```python
+# Behind Cloudflare only
+ipw = IpWare(precedence=("HTTP_CF_CONNECTING_IP", "HTTP_X_FORWARDED_FOR", "REMOTE_ADDR"))
+```
+
 ## Trusted proxies
 
 If your server sits behind known proxies, pass their IPs or prefixes:
@@ -167,6 +177,7 @@ If your server sits behind known proxies, pass their IPs or prefixes:
 ipw = IpWare(proxy_list=["198.84.193.157"])            # one proxy
 ipw = IpWare(proxy_list=["198.84.193.157", "198.84.193.158"])  # two proxies
 ipw = IpWare(proxy_list=["177.139.", "177.140"])       # prefixes for dynamic IPs
+ipw = IpWare(proxy_list=["100.64.0.0/10"])             # CIDR network (IPv4 or IPv6)
 
 # non-strict — X-Forwarded-For: <fake>, <client>, <proxy1>, <proxy2>
 ip, trusted_route = ipw.get_client_ip(request.META)

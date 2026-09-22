@@ -17,6 +17,7 @@ DEFAULT_PRECEDENCE: tuple[str, ...] = (
     "HTTP_CF_CONNECTING_IP",  # Cloudflare
     "HTTP_TRUE_CLIENT_IP",  # Cloudflare Enterprise / Akamai
     "HTTP_FASTLY_CLIENT_IP",  # Fastly / Firebase
+    "HTTP_FLY_CLIENT_IP",  # Fly.io
     "HTTP_X_APPENGINE_USER_IP",  # Google App Engine
     "X-CLIENT-IP",  # Azure
     "X-REAL-IP",  # NGINX
@@ -26,6 +27,7 @@ DEFAULT_PRECEDENCE: tuple[str, ...] = (
     "CF-CONNECTING-IP",
     "TRUE-CLIENT-IP",
     "FASTLY-CLIENT-IP",
+    "FLY-CLIENT-IP",
     "FORWARDED",
     "CLIENT-IP",
     "REMOTE_ADDR",

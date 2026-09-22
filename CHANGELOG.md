@@ -1,5 +1,13 @@
 ## 4.0.0
 
+Community (thank you!):
+- Trusted proxies in `proxy_list` can now be CIDR networks, IPv4 or IPv6 (e.g. `100.64.0.0/10`), matched by
+  real network membership; plain prefixes still work. Modern engine only. Requested by @griffi-gh (#26).
+- Added Fly.io's `Fly-Client-IP` header to the modern default precedence. Suggested by @mdalp (#23).
+- README now shows how to put a CDN header such as Cloudflare's first via `precedence`, when all traffic
+  comes through that CDN. Suggested by @iloveitaly (#25).
+- CI covers Python 3.13 and newer. Suggested by @iloveitaly (#24).
+
 Enhance:
 - Introduce a pluggable algorithm router: `IpWare(algorithm=...)` with `"auto"` (default), `"modern"`, and `"legacy"`.
   - `"auto"` resolves to `"modern"` — the enhanced engine and the forward-moving default.
