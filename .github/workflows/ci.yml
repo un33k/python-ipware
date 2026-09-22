@@ -1,19 +1,13 @@
 name: ci
 
+# Runs only on pull requests into main: test and build before merge.
+# main is protected (PR-only, these checks required), so nothing reaches it
+# untested and there is no need to re-run after merge. Releases are
+# published manually; tags do not trigger CI.
 on:
-  push:
-    branches:
-      - ci
-      - dev
-      - main
-    tags:
-      - "v*"
   pull_request:
     branches:
-      - ci
-      - dev
       - main
-  workflow_dispatch:
 
 jobs:
   ci:
@@ -89,23 +83,3 @@ jobs:
           path: dist/*
           if-no-files-found: error
           retention-days: 7
-
-  pypi-publish:
-    name: Publish
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
-    permissions:
-      id-token: write # mandatory for trusted publishing
-    needs:
-      - build
-      - ci
-    steps:
-      - uses: actions/download-artifact@v8
-        with:
-          name: artifacts
-          path: dist
-      - name: Publish build to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          # A version already on PyPI (e.g. uploaded manually) is not an error.
-          skip-existing: true
