@@ -1,313 +1,259 @@
-# Python IPware (A Python Package)
+# Python IPware
 
-**A python package for server applications to retrieve client's IP address**
+Best-effort client IP detection for Python server applications — Django, Flask, or any WSGI/ASGI framework.
 
 [![status-image]][status-link]
 [![version-image]][version-link]
 [![coverage-image]][coverage-link]
+[![maintained-image]][maintained-link]
 
-# Overview
+## Quickstart
 
-**Best attempt** to get client's IP address while keeping it **DRY**.
-
-# Notice
-
-### Addressing IP Address Spoofing
-
-There is no perfect `out-of-the-box` solution to counteract fake IP addresses, or IP Address Spoofing. We strongly recommend reading the [Advanced Users](README.md#advanced-users) section. Utilize the `proxy_list` and `proxy_count` features to adapt the functionality to your specific requirements, especially if you plan to incorporate `python-ipware` into authentication, security, or anti-fraud systems.
-
-### Open Source Considerations
-
-Keep in mind that `python-ipware` is an open-source project, meaning its source code is accessible to everyone. While this openness promotes community engagement and scrutiny, it also exposes the code to potential exploiters who might take advantage of unimplemented or improperly implemented features.
-
-### Complementary Security Measure
-
-Use `python-ipware` **only** as an additional layer to bolster your security, not as a primary defense mechanism. Always pair it with robust firewall security protocols to ensure comprehensive protection against a variety of security threats, including IP spoofing.
-
-# How to install
-
+```sh
+python -m pip install --upgrade python-ipware
 ```
-pip install python-ipware
-```
--- or --
-```
-pip3 install python-ipware
-```
-
-# How to use
-
-### Using python-ipware to Retrieve Client IP in Django or Flask
-
-Here's a basic example of how to use `python-ipware` in a view or middleware where the `request` object is available. This can be applied in Django, Flask, or other similar frameworks.
 
 ```python
 from python_ipware import IpWare
 
-# Instantiate IpWare with default values
 ipw = IpWare()
 
-# Get the META data from the request object
-meta = request.META  # Django
-# meta = request.environ # Flask
-
-# Get the client IP and the trusted route flag
-ip, trusted_route = ipw.get_client_ip(meta)
+# Django: request.META  |  Flask: request.environ
+ip, trusted_route = ipw.get_client_ip(request.META)
 
 if ip:
-    # The 'ip' is an object of type IPv4Address() or IPv6Address() with properties like:
-    # - ip.is_global: True if the IP is globally routable
-    # - ip.is_private: True if the IP is a private address
-    # - ip.is_loopback: True if the IP is a loopback address
-    # - ip.is_multicast: True if the IP is a multicast address
-    # - ip.is_unspecified: True if the IP is an unspecified address
-    # - ip.is_reserved: True if the IP is a reserved address
+    # ip is an ipaddress.IPv4Address or IPv6Address
+    ip.is_global     # publicly routable
+    ip.is_private    # private network
+    ip.is_loopback   # 127.0.0.1 / ::1
 
 if trusted_route:
-    # Indicates if the request came through our trusted proxies
-
-# You can now use the IP address as needed, for example, attaching it to the request object.
-# Consider caching the IP address for performance, as it doesn't change often.
-# It's also advisable to have distinct session IDs for public and anonymous users to cache the IP address effectively.
+    # the request came through your configured proxies (proxy_count / proxy_list)
+    ...
 ```
 
-# Advanced users:
+Python 3.9 – 3.13 is supported. No runtime dependencies.
 
-|        Params ⇩ | ⇩ Description                                                                                                                                                                                                                                                                                                                                                     |
-| --------------: | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `proxy_count` ⇨ | : Total number of expected proxies (pattern: `client, proxy1, ..., proxy2`)<br>: if `proxy_count = 0` then `client`<br>: if `proxy_count = 1` then `client, proxy1`<br>: if `proxy_count = 2` then `client, proxy1, proxy2` <br>: if `proxy_count = 3` then `client, proxy1, proxy2 proxy3`                                                                       |
-|  `proxy_list` ⇨ | : List of trusted proxies (ip header pattern: `client, proxy1, ,..., proxyN`)<br>: if `proxy_list = ['10.1.']` then `client, proxy1`<br>: if `proxy_list = ['10.1', '10.2.3']` then `client, proxy1 proxy2`<br>: if `proxy_list = ['10.1', '10.2.', '10.3.4.4']` then `client, proxy1, proxy2, proxy3` |
-|    `leftmost` ⇨ | : `leftmost = True` is default for de-facto standard.<br>: `leftmost = False` for rare legacy networks that are configured with the `rightmost` pattern.<br>: It converts `client, proxy1 proxy2` to `proxy2, proxy1, client`                                                                                                                                     |
+> **Legacy:** the frozen 3.x algorithm is still available with `IpWare(algorithm="legacy")`.
+> See the [legacy guide](https://github.com/un33k/python-ipware/blob/main/python_ipware/legacy/README.md).
 
-|          Output ⇩ | ⇩ Description                                                                                |
-| ----------------: | :------------------------------------------------------------------------------------------- |
-|            `ip` ⇨ | : Client IP address object of type IPv4Address() or IPv6Address()                            |
-| `trusted_route` ⇨ | : If proxy `proxy_count` and/or `proxy_list` were provided and matched, `True`, else `False` |
+## What it's used for
 
-### Precedence Order
+```mermaid
+flowchart LR
+    R["Incoming request"] --> I["IpWare().get_client_ip(request.META)"]
+    I --> RL["Rate limiting and throttling"]
+    I --> GEO["Geo-location and localization"]
+    I --> LOG["Audit and access logs"]
+    I --> FR["Abuse and fraud signals<br/>(check trusted_route)"]
+    I --> AUTH["Login anomaly checks<br/>(check trusted_route)"]
+```
 
-The client IP address can be found in one or more request headers attributes. The lookup order is top to bottom and the default attributes are as follow.
+## Security notice
+
+There is no perfect defense against IP address spoofing. Headers such as `X-Forwarded-For` are set by
+clients and proxies, and can be forged. If you use `python-ipware` for authentication, rate limiting, or
+anti-fraud, configure `proxy_count` and/or `proxy_list` for your network topology and treat it as one
+layer alongside your firewall — never as the only defense.
+
+```mermaid
+sequenceDiagram
+    participant A as Attacker (real IP 8.8.8.8)
+    participant P as Your proxy chain
+    participant App as Your app
+    A->>P: X-Forwarded-For: 1.2.3.4 (forged)
+    P->>App: X-Forwarded-For: 1.2.3.4, 8.8.8.8, 104.16.0.1, 34.120.0.1
+    Note over App: IpWare() trusts the left-most entry and returns 1.2.3.4 (spoofed)
+    Note over App: IpWare(proxy_count=2) counts from the right and returns 8.8.8.8
+    Note over App: Adding strict=True rejects the tampered header entirely
+```
+
+## API
 
 ```python
-# The default meta precedence order - you can be more specific as per your configuration
-# It will start looking through the request headers from top to bottom to find the best match
-# It will return the first qualified global (public) ip address it finds, else
-# It will return the first qualified private ip address it finds, else
-# It will return the first qualified loopback up address it finds, else it returns None
-# Update as per your network topology, reduce the numbers and/or reorder the list
-request_headers_precedence_order = (
-    "X_FORWARDED_FOR",  # Load balancers or proxies such as AWS ELB (default client is `left-most` [`<client>, <proxy1>, <proxy2>`])
-    "HTTP_X_FORWARDED_FOR",  # Similar to X_FORWARDED_TO
-    "HTTP_CLIENT_IP",  # Standard headers used by providers such as Amazon EC2, Heroku etc.
-    "HTTP_X_REAL_IP",  # Standard headers used by providers such as Amazon EC2, Heroku etc.
-    "HTTP_X_FORWARDED",  # Squid and others
-    "HTTP_X_CLUSTER_CLIENT_IP",  # Rackspace LB and Riverbed Stingray
-    "HTTP_FORWARDED_FOR",  # RFC 7239
-    "HTTP_FORWARDED",  # RFC 7239
-    "HTTP_CF_CONNECTING_IP",  # CloudFlare
-    "X-CLIENT-IP",  # Microsoft Azure
-    "X-REAL-IP",  # NGINX
-    "X-CLUSTER-CLIENT-IP",  # Rackspace Cloud Load Balancers
-    "X_FORWARDED",  # Squid
-    "FORWARDED_FOR",  # RFC 7239
-    "CF-CONNECTING-IP",  # CloudFlare
-    "TRUE-CLIENT-IP",  # CloudFlare Enterprise,
-    "FASTLY-CLIENT-IP",  # Firebase, Fastly
-    "FORWARDED",  # RFC 7239
-    "CLIENT-IP",  # Akamai and Cloudflare: True-Client-IP and Fastly: Fastly-Client-IP
-    "REMOTE_ADDR",  # Default
+IpWare(
+    precedence=None,     # tuple of request.META keys to check, in order
+    leftmost=True,       # client is the left-most IP in the chain
+    proxy_count=None,    # expected number of proxies in front of your server
+    proxy_list=None,     # trusted proxy IP prefixes
+)
+
+ip, trusted_route = ipw.get_client_ip(meta, strict=False)
+```
+
+| Parameter | Description |
+| --- | --- |
+| `precedence` | Header keys to search, top to bottom. Defaults to the list below. |
+| `leftmost` | `True` (default) follows the de-facto `client, proxy1, proxy2` order. Use `False` only for networks that put the client right-most. |
+| `proxy_count` | Number of proxies expected after the client. `0` is valid; `None` disables the check. |
+| `proxy_list` | Trusted proxy prefixes, e.g. `["10.1.", "198.84.193.157"]`, matched against the proxies nearest your server. |
+| `strict` | `False`: at least `proxy_count` / `proxy_list` proxies. `True`: exactly that many — extra or invalid entries reject the header. |
+
+| Output | Description |
+| --- | --- |
+| `ip` | `IPv4Address`, `IPv6Address`, or `None` |
+| `trusted_route` | `True` when `proxy_count` or `proxy_list` was configured and matched |
+
+### Selection rules
+
+Headers are checked in precedence order. The first **public** IP found wins; otherwise the first
+**private** IP; otherwise the first **loopback** IP; otherwise `None`.
+
+```mermaid
+flowchart TD
+    A["request.META"] --> B["Take the next header in precedence order"]
+    B --> C{"Header present?"}
+    C -->|no| B
+    C -->|yes| D["Split the chain: client, proxy1, proxy2"]
+    D --> E{"Matches proxy_count and proxy_list?"}
+    E -->|no| B
+    E -->|yes| F["Pick the client entry"]
+    F --> G{"Public IP?"}
+    G -->|yes| H["Return (ip, trusted_route)"]
+    G -->|no| I["Keep as private or loopback fallback"]
+    I --> B
+    B -->|no headers left| J["Return first private, else loopback, else None"]
+```
+
+Ports are stripped (`1.2.3.4:8080`, `[2001:db8::1]:443`) and IPv4-mapped IPv6 addresses
+(`::ffff:1.2.3.4`) are returned as plain IPv4.
+
+## Default header precedence
+
+```python
+(
+    "X_FORWARDED_FOR",           # load balancers / proxies (AWS ELB, etc.)
+    "HTTP_X_FORWARDED_FOR",
+    "HTTP_CLIENT_IP",            # Amazon EC2, Heroku
+    "HTTP_X_REAL_IP",
+    "HTTP_X_FORWARDED",          # Squid
+    "HTTP_X_CLUSTER_CLIENT_IP",  # Rackspace LB, Riverbed Stingray
+    "HTTP_FORWARDED_FOR",        # RFC 7239
+    "HTTP_FORWARDED",            # RFC 7239
+    "HTTP_CF_CONNECTING_IP",     # Cloudflare
+    "HTTP_TRUE_CLIENT_IP",       # Cloudflare Enterprise, Akamai
+    "HTTP_FASTLY_CLIENT_IP",     # Fastly, Firebase
+    "HTTP_X_APPENGINE_USER_IP",  # Google App Engine
+    "X-CLIENT-IP",               # Microsoft Azure
+    "X-REAL-IP",                 # NGINX
+    "X-CLUSTER-CLIENT-IP",       # Rackspace Cloud Load Balancers
+    "X_FORWARDED",
+    "FORWARDED_FOR",
+    "CF-CONNECTING-IP",
+    "TRUE-CLIENT-IP",
+    "FASTLY-CLIENT-IP",
+    "FORWARDED",
+    "CLIENT-IP",
+    "REMOTE_ADDR",               # direct connection
 )
 ```
 
-You can customize the order by providing your own list during initialization when calling `IpWare()`.
+Narrow it to what your infrastructure actually sets:
 
 ```python
-# specific meta key
-ipw = IpWare(precedence=("X_FORWARDED_FOR"))
-
-# multiple meta keys
-ipw = IpWare(precedence=("X_FORWARDED_FOR", "HTTP_X_FORWARDED_FOR"))
-
-# Django (request.META)
-ip, proxy_verified = ipw.get_client_ip(meta=request.META)
-
-# Flask (request.environ)
-ip, proxy_verified = ipw.get_client_ip(meta=request.environ)
-
-# ... etc.
-
+ipw = IpWare(precedence=("HTTP_X_FORWARDED_FOR", "REMOTE_ADDR"))
 ```
 
-### Trusted Proxies
+## Trusted proxies
 
-If your node server is behind one or more known proxy server(s), you can filter out unwanted requests
-by providing a `trusted proxy list`, or a known proxy `count`.
-
-You can customize the proxy IP prefixes by providing your own list during initialization when calling `IpWare(proxy_list)`.
-You can pass your custom list on every call, when calling the proxy-aware api to fetch the ip.
+If your server sits behind known proxies, pass their IPs or prefixes:
 
 ```python
-# In the above scenario, use your load balancer IP address as a way to filter out unwanted requests.
-ipw = IpWare(proxy_list=["198.84.193.157"])
+ipw = IpWare(proxy_list=["198.84.193.157"])            # one proxy
+ipw = IpWare(proxy_list=["198.84.193.157", "198.84.193.158"])  # two proxies
+ipw = IpWare(proxy_list=["177.139.", "177.140"])       # prefixes for dynamic IPs
 
+# non-strict — X-Forwarded-For: <fake>, <client>, <proxy1>, <proxy2>
+ip, trusted_route = ipw.get_client_ip(request.META)
 
-# If you have multiple proxies, simply add them to the list
-ipw = IpWare(proxy_list=["198.84.193.157", "198.84.193.158"])
-
-# For proxy servers with fixed sub-domain and dynamic IP, use the following pattern.
-ipw = IpWare(proxy_list=["177.139.", "177.140"])
-
-# usage: non-strict mode (X-Forwarded-For: <fake>, <client>, <proxy1>, <proxy2>)
-# The request went through our <proxy1> and <proxy2>, then our server
-# We choose the <client> ip address to the left our <proxy1> and ignore other ips
-ip, trusted_route = ipw.get_client_ip(meta=request.META)
-
-
-# usage: strict mode (X-Forwarded-For: <client>, <proxy1>, <proxy2>)
-# The request went through our <proxy1> and <proxy2>, then our server
-# Total ip address are total trusted proxies + client ip
-# We don't allow far-end proxies, or fake addresses (exact or None)
-ip, trusted_route = ipw.get_client_ip(meta=request.META, strict=True)
+# strict — X-Forwarded-For must be exactly: <client>, <proxy1>, <proxy2>
+ip, trusted_route = ipw.get_client_ip(request.META, strict=True)
 ```
 
-In the following `example`, your public load balancer (LB) can be seen as a `trusted` proxy.
-
+```mermaid
+flowchart LR
+    RC["Real client<br/>8.8.8.8"] --> LB["Trusted proxy<br/>198.84.193.157"]
+    LB -->|"XFF: 8.8.8.8, 198.84.193.157"| APP["Your app<br/>proxy_list: 198.84.193.157"]
+    FC["Fake client<br/>5.6.7.8"] -->|"bypasses the proxy<br/>XFF: 1.2.3.4 (forged)"| APP
+    APP --> OK["Real request: (8.8.8.8, True)"]
+    APP --> NO["Fake request: (None, False)"]
 ```
-`Real` Client <public> <-> <public> LB (Server) <private> <-----> <private> Django Server
-                                                             ^
-                                                             |
-`Fake` Client <private> <-> <private> LB (Server) <private> -+
-```
 
-### Proxy Count
+## Proxy count
 
-If your python server is behind a `known` number of proxies, but you deploy on multiple providers and don't want to track proxy IPs, you still can filter out unwanted requests by providing proxy `count`.
-
-You can customize the proxy count by providing your `proxy_count` during initialization when calling `IpWare(proxy_count=2)`.
+If you know how many proxies are in front of you but not their IPs (for example, across providers):
 
 ```python
-from python_ipware import IpWare
-
-# Enforce proxy count
-# proxy_count=0 is valid
-# proxy_count=None to disable proxy_count check
 ipw = IpWare(proxy_count=2)
 
-# Example usage in non-strict mode:
-# X-Forwarded-For format: <fake>, <client>, <proxy1>, <proxy2>
-# At least `proxy_count` number of proxies
-ip, trusted_route = ipw.get_client_ip(meta=request.META)
+# non-strict — at least 2 proxies
+ip, trusted_route = ipw.get_client_ip(request.META)
 
-# Example usage in strict mode:
-# X-Forwarded-For format: <client>, <proxy1>, <proxy2>
-# Exact `proxy_count` number of proxies
-ip, trusted_route = ipw.get_client_ip(meta=request.META, strict=True)
+# strict — exactly 2 proxies: <client>, <proxy1>, <proxy2>
+ip, trusted_route = ipw.get_client_ip(request.META, strict=True)
 ```
 
-### Proxy Count & Trusted Proxy List Combo
-In this example, we utilize the total number of proxies as a method to filter out unwanted requests while verifying the trust proxies.
+```mermaid
+flowchart LR
+    C["Client<br/>8.8.8.8"] --> P1["Proxy 1<br/>104.16.0.1"] --> P2["Proxy 2<br/>34.120.0.1"] --> APP["Your app<br/>proxy_count=2"]
+    APP --> H1["XFF: 8.8.8.8, 104.16.0.1, 34.120.0.1<br/>returns (8.8.8.8, True)"]
+    APP --> H2["XFF: 1.2.3.4, 8.8.8.8, 104.16.0.1, 34.120.0.1<br/>forged prefix ignored: (8.8.8.8, True)<br/>strict=True: (None, False)"]
+```
+
+Combine both for the tightest check:
 
 ```python
-from python_ipware import IpWare
-
-# Enforce both proxy count and trusted proxies
 ipw = IpWare(proxy_count=1, proxy_list=["198.84.193.157"])
-
-# Example usage in non-strict mode:
-# X-Forwarded-For format: <fake>, <client>, <proxy1>, <proxy2>
-# At least `proxy_count` number of proxies
-ip, trusted_route = ipw.get_client_ip(meta=request.META)
-
-# Example usage in strict mode:
-# X-Forwarded-For format: <client>, <proxy1>
-# Exact `proxy_count` number of proxies
-ip, trusted_route = ipw.get_client_ip(meta=request.META, strict=True)
 ```
 
-In the following `example`, your public load balancer (LB) can be seen as the `only` proxy.
+## Right-most client networks
 
-```
-`Real` Client <public> <-> <public> LB (Server) <private> <---> <private> Node Server
-                                                            ^
-                                                            |
-                                `Fake` Client  <private> ---+
-```
-
-### Support for Public IP Address (routable on the internet), Private and Loopback
+The [de-facto standard](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For) puts the
+originating client left-most. For the rare network that puts it right-most:
 
 ```python
-# We make best attempt to return the first public IP address based on header precedence
-# Then we fall back on private, followed by loopback
-from python_ipware import IpWare
-
-# no proxy enforce in this example
-ipw = IpWare()
-
-ip, _ = ipw.get_client_ip(meta=request.META)
-
-if ip.is_global:
-    print('Public IP')
-else if ip.is_private:
-    print('Private IP')
-else if ip.is_loopback:
-    print('Loopback IP')
-else if ip.is_multicast:
-    print('Multicast IP')
-else if ip.is_unspecified:
-    print('Unspecified IP')
-else if ip.is_reserved:
-    print('Reserved IP')
+ipw = IpWare(leftmost=False)
 ```
 
+```mermaid
+flowchart LR
+    S["Standard: client, proxy1, proxy2"] -->|"leftmost=True (default)"| A["client = first entry"]
+    R["Reversed: proxy2, proxy1, client"] -->|"leftmost=False"| B["client = last entry"]
+```
 
-### IP Address Handling
+See [docs/nginx.md](https://github.com/un33k/python-ipware/blob/main/docs/nginx.md) for an NGINX configuration example.
 
-#### Support for IPv4, IPv6, and IP:Port Patterns
+## Development
 
-`python-ipware` is designed to handle various IP address formats efficiently:
+```sh
+python -m pip install -e '.[dev]'
+ruff check .
+python -m unittest discover -s tests -p "tests_*.py"   # full suite
+python -m tests.legacy.run_against_legacy             # v3 suite against the legacy engine
+python -m build && python -m twine check dist/*
+```
 
-- **Ports Stripping:** Automatically removes ports from IP addresses, ensuring only the IP is processed.
-- **IPv6 Unwrapping:** Extracts and processes IPv4 addresses wrapped in IPv6 containers.
+## License
 
-#### Identifying the Originating IP Address
+Released under the [MIT](https://github.com/un33k/python-ipware/blob/main/LICENSE) license.
 
-The [de-facto standard](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For) for identifying the originating client IP address is to use the `leftmost` IP in the `X-Forwarded-For` header, following the pattern `client, proxy1, proxy2`. Here, the `rightmost` IP is considered the most trusted proxy.
+## Maintenance
 
-##### Custom Network Configurations
+`python-ipware` is actively maintained with [Dojo](https://heydojo.ai) ⛩️. The legacy engine is frozen for
+backward compatibility; all improvements target the modern engine. Need support? Reach
+[Neekware Inc.](https://neekware.com) at info@neekware.com.
 
-In some rare scenarios, networks might be configured such that the `rightmost` IP address represents the originating client. In such cases, instantiate `IpWare` with the `leftmost=False` parameter:
+## Sponsors
 
+[Neekware Inc.](https://neekware.com) — creator of [Dojo Workspace](https://heydojo.ai), your AI workspace for building, learning, and getting things done.
 
-# Running the tests
-
-To run the tests against the current environment:
-
-    ./test.sh
-
-# License
-
-Released under a ([MIT](https:#raw.githubusercontent.com/un33k/python-ipware/main/LICENSE)) license.
-
-# Version
-
-X.Y.Z Version
-
-    `MAJOR` version -- making incompatible API changes
-    `MINOR` version -- adding functionality in a backwards-compatible manner
-    `PATCH` version -- making backwards-compatible bug fixes
+🚀 Created with [Dojo](https://heydojo.ai) ⛩️
 
 [status-image]: https://github.com/un33k/python-ipware/actions/workflows/ci.yml/badge.svg
 [status-link]: https://github.com/un33k/python-ipware/actions/workflows/ci.yml
 [version-image]: https://img.shields.io/pypi/v/python-ipware.svg
-[version-link]: https://pypi.python.org/pypi/python-ipware?branch=main
+[version-link]: https://pypi.org/project/python-ipware/
 [coverage-image]: https://coveralls.io/repos/github/un33k/python-ipware/badge.svg?branch=main
 [coverage-link]: https://coveralls.io/github/un33k/python-ipware?branch=main
-[download-image]: https://img.shields.io/pypi/dm/python-ipware.svg
-[download-link]: https://pypi.python.org/pypi/python-ipware
-
-# Sponsors
-
-[Neekware Inc.](http://neekware.com)
-
-# Need Support?
-
-[Neekware Inc.](http://neekware.com) (reach out at info@neekware.com)
+[maintained-image]: https://img.shields.io/badge/maintained%20with-Dojo%20%E2%9B%A9%EF%B8%8F-1f2937
+[maintained-link]: https://heydojo.ai

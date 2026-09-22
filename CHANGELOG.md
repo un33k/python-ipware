@@ -1,3 +1,23 @@
+## 4.0.0
+
+Enhance:
+- Introduce a pluggable algorithm router: `IpWare(algorithm=...)` with `"auto"` (default), `"modern"`, and `"legacy"`.
+  - `"auto"` resolves to `"modern"` — the enhanced engine and the forward-moving default.
+  - `"legacy"` is an explicit escape hatch that runs the frozen v3 algorithm byte-for-byte.
+- New `modern` engine: hardened IPv6 / bracketed-port / IPv4-mapped parsing and an expanded default header
+  precedence list (adds `True-Client-IP`, `Fastly-Client-IP`, App Engine, Azure `X-Client-IP`).
+- The frozen v3 algorithm is preserved unchanged under `python_ipware.legacy`; the original v3 test suite
+  passes against both the legacy and modern engines.
+
+Modernize:
+- Migrate packaging to PEP 621 with the Hatchling build backend; version is read from `__version__.py`.
+- Drop end-of-life Python 3.7 / 3.8; supported range is now 3.9–3.13.
+- Bump ruff config to the `lint.*` table layout.
+
+Note:
+- No source change is required for existing users: `from python_ipware import IpWare` continues to work and
+  now defaults to the modern engine, which is a verified superset of v3 behavior.
+
 ## 3.0.0
 
 Fix:
