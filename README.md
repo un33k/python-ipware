@@ -41,7 +41,7 @@ Python 3.9 – 3.13 is supported. No runtime dependencies.
 
 ```mermaid
 flowchart LR
-    R["Incoming request"] --> I["IpWare().get_client_ip(request.META)"]
+    R["Incoming request"] --> I["IpWare().get_client_ip(...)"]
     I --> RL["Rate limiting and throttling"]
     I --> GEO["Geo-location and localization"]
     I --> LOG["Audit and access logs"]
@@ -72,7 +72,7 @@ sequenceDiagram
 
 ```python
 IpWare(
-    precedence=None,     # tuple of request.META keys to check, in order
+    precedence=None,     # tuple of header keys to check, in order
     leftmost=True,       # client is the left-most IP in the chain
     proxy_count=None,    # expected number of proxies in front of your server
     proxy_list=None,     # trusted proxy IP prefixes
@@ -101,7 +101,7 @@ Headers are checked in precedence order. The first **public** IP found wins; oth
 
 ```mermaid
 flowchart TD
-    A["request.META"] --> B["Take the next header in precedence order"]
+    A["Request headers (...)"] --> B["Take the next header in precedence order"]
     B --> C{"Header present?"}
     C -->|no| B
     C -->|yes| D["Split the chain: client, proxy1, proxy2"]
