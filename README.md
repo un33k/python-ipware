@@ -119,7 +119,13 @@ Within one header, the client entry depends on your proxy settings:
 - **`proxy_count` / `proxy_list` set:** the entry just before your trusted proxies, exactly as in v3.
 - **Neither set:** the first public entry in the chain, not only the first entry. So
   `10.0.0.1, 177.139.233.139` yields `177.139.233.139` (v3 returned `10.0.0.1`). With
-  `leftmost=False` the chain is scanned from the right.
+  `leftmost=False` the chain is scanned from the right. That public entry may be an upstream proxy
+  rather than the client. If you need to identify private clients (intranet, VPN), set
+  `proxy_count` or `proxy_list` so the client position is fixed.
+
+Every default header can be sent by a client, and the modern engine now also reads `Forwarded`,
+which sits above the CDN headers. Behind a CDN, pass an explicit `precedence` naming that CDN's
+header (see below).
 
 ```mermaid
 flowchart TD
@@ -140,8 +146,8 @@ flowchart TD
 The legacy engine keeps v3's rules. A combination suite checks that the modern engine never returns a
 worse address than legacy for the same input.
 
-Ports are stripped (`1.2.3.4:8080`, `[2001:db8::1]:443`) and IPv4-mapped IPv6 addresses
-(`::ffff:1.2.3.4`) are returned as plain IPv4. RFC 7239 `Forwarded` elements are read by their
+Ports are stripped (`1.2.3.4:8080`, `[2001:db8::1]:443`). IPv4-mapped (`::ffff:1.2.3.4`) and NAT64
+well-known-prefix (`64:ff9b::1.2.3.4`) addresses are returned as plain IPv4. RFC 7239 `Forwarded` elements are read by their
 `for=` value (`for="[2001:db8::1]:4711";proto=https`). Malformed tokens such as `[::1`,
 `[::1]junk`, or `1.2.3.4:abc` are rejected rather than truncated. Header names match
 case-insensitively, so lowercase keys (AWS Lambda / API Gateway v2) work too.

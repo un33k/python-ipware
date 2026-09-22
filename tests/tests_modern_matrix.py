@@ -293,6 +293,23 @@ class TestBestMatchExamples(unittest.TestCase):
         ip, _ = IpWare(leftmost=False).get_client_ip(meta)
         self.assertEqual(str(ip), "177.139.233.139")
 
+    def test_nat64_well_known_prefix_unwrapped(self):
+        # v3 returned the IPv6 form; the embedded IPv4 is the real client.
+        cases = {
+            "64:ff9b::2d01:101": "45.1.1.1",
+            "[64:ff9b::b18b:e98b]:443": "177.139.233.139",
+            "64:ff9b::a00:1": "10.0.0.1",
+        }
+        for raw, expected in cases.items():
+            with self.subTest(raw=raw):
+                ip, _ = IpWare().get_client_ip({"REMOTE_ADDR": raw})
+                self.assertEqual(str(ip), expected)
+
+    def test_nat64_matches_proxy_as_ipv4(self):
+        ipw = IpWare(proxy_list=["198.84.193.157"])
+        meta = {"HTTP_X_FORWARDED_FOR": "177.139.233.139, 64:ff9b::c654:c19d"}
+        self.assertEqual(ipw.get_client_ip(meta, strict=True), (ipaddress.ip_address("177.139.233.139"), True))
+
     def test_junk_addresses_never_returned(self):
         for junk in ("0.0.0.0", "::", "224.0.0.1", "ff02::1", "255.255.255.255", "240.0.0.1", "::8.8.8.8"):
             with self.subTest(junk=junk):
