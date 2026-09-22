@@ -53,6 +53,9 @@ flowchart LR
 
 ## Security notice
 
+> **Found a security issue?** Please email **info@neekware.com** privately — do not open a public
+> issue or pull request. See [SECURITY.md](https://github.com/un33k/python-ipware/blob/main/SECURITY.md).
+
 There is no perfect defense against IP address spoofing. Headers such as `X-Forwarded-For` are set by
 clients and proxies, and can be forged. If you use `python-ipware` for authentication, rate limiting, or
 anti-fraud, configure `proxy_count` and/or `proxy_list` for your network topology and treat it as one
