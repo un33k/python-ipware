@@ -12,40 +12,106 @@ Same inputs, outputs and proxy semantics as v3, with a better best-match:
   fixed by the config, exactly as in v3.
 * Same ``strict`` semantics for proxy_count / proxy_list validation.
 * Trusted-proxy matching anchored to the end of the chain. Each ``proxy_list``
-  entry is either a CIDR network (``"100.64.0.0/10"``, ``"fd7a:115c:a1e0::/48"``)
-  matched by real network membership, or a plain string prefix (``"10.1."``).
+  entry is a CIDR network (``"100.64.0.0/10"``, ``"fd7a:115c:a1e0::/48"``), a
+  complete IP matched exactly, or an IP prefix matched on octet / group
+  boundaries (``"10.1."``, ``"10.1"`` -> 10.1.x.x only).
 * ``trusted_route`` is True whenever the returned IP came from a chain that
   passed the configured proxy validation, whatever its tier.
+* Misconfiguration fails loudly at construction instead of silently trusting
+  or never matching.
 """
 
 import ipaddress
-from typing import Optional, Union
+from collections.abc import Mapping
+from typing import Any, Optional, Union
 
 from .defaults import DEFAULT_PRECEDENCE
-from .parsers import TIER_GLOBAL, TIER_REJECT, IpAddressType, ip_tier, split_proxy_chain
+from .parsers import (
+    TIER_GLOBAL,
+    TIER_REJECT,
+    IpAddressType,
+    IpNetworkType,
+    ip_tier,
+    split_proxy_chain,
+    unwrap_ipv4,
+    unwrap_ipv4_network,
+)
 
 OptionalIp = Optional[IpAddressType]
-IpNetworkType = Union[ipaddress.IPv4Network, ipaddress.IPv6Network]
 ProxyMatcher = Union[str, IpNetworkType]
+
+_PREFIX_CHARS = frozenset("0123456789abcdef.:")
 
 
 def _compile_proxy_matcher(pattern: str) -> ProxyMatcher:
-    """CIDR entries become networks; anything else stays a string prefix."""
-    if "/" not in pattern:
-        return pattern
-    try:
-        # strict=False accepts host bits set, e.g. "10.0.0.5/24" -> 10.0.0.0/24.
-        return ipaddress.ip_network(pattern.strip(), strict=False)
-    except ValueError as exc:
-        msg = f"Invalid CIDR in proxy_list: {pattern!r}"
-        raise ValueError(msg) from exc
+    """Compile one ``proxy_list`` entry.
+
+    * ``"10.0.0.0/8"`` -> network, matched by membership.
+    * ``"198.84.193.157"`` (a complete IP) -> exact /32 or /128 network, so it
+      can never match ``198.84.193.15x`` and IPv6 spelling (case, zeros) does
+      not matter.
+    * ``"198.84."`` / ``"10.1"`` / ``"2001:db8:"`` -> text prefix, matched on
+      octet / group boundaries only. An entry ending in ``:`` is always a
+      prefix, since ``"2001:db8::"`` historically meant "anything under it".
+    """
+    if "/" in pattern:
+        try:
+            # strict=False accepts host bits set, e.g. "10.0.0.5/24" -> 10.0.0.0/24.
+            return unwrap_ipv4_network(ipaddress.ip_network(pattern, strict=False))
+        except ValueError as exc:
+            msg = f"Invalid CIDR in proxy_list: {pattern!r}"
+            raise ValueError(msg) from exc
+    if not pattern.endswith(":"):
+        try:
+            return ipaddress.ip_network(unwrap_ipv4(ipaddress.ip_address(pattern)))
+        except ValueError:
+            pass
+    prefix = pattern.lower()
+    if not set(prefix) <= _PREFIX_CHARS:
+        msg = f"proxy_list entry is not an IP, CIDR or IP prefix: {pattern!r}"
+        raise ValueError(msg)
+    return prefix
 
 
 def _proxy_matches(ip: IpAddressType, matcher: ProxyMatcher) -> bool:
     if isinstance(matcher, str):
-        return str(ip).startswith(matcher)
+        text = str(ip)
+        if not text.startswith(matcher):
+            return False
+        # Boundary check: "10.1" matches 10.1.x.x but not 10.100.x.x.
+        rest = text[len(matcher) :]
+        return not rest or matcher[-1] in ".:" or rest[0] in ".:%"
     # Membership across IP versions is simply False, never an error.
     return ip.version == matcher.version and ip in matcher
+
+
+def _fold(key: str) -> str:
+    return key.upper().replace("-", "_")
+
+
+def _build_folded(meta: Mapping[Any, Any]) -> dict[str, object]:
+    """Case- and dash-insensitive view of ``meta`` for lowercase-key adapters.
+
+    When several spellings fold to the same name, the result must not depend
+    on dict order. Real header names use dashes, while an underscore spelling
+    in a raw header dict can only come from the client, so dash spellings win.
+    If several dash spellings disagree, the header is treated as absent.
+    """
+    groups: dict[str, list[tuple[str, object]]] = {}
+    for key, value in meta.items():
+        if isinstance(key, str):
+            groups.setdefault(_fold(key), []).append((key, value))
+    folded: dict[str, object] = {}
+    for name, items in groups.items():
+        dashed = [v for k, v in items if "-" in k]
+        pool = dashed or [v for _, v in items]
+        distinct: list[object] = []
+        for value in pool:
+            if value not in distinct:
+                distinct.append(value)
+        if len(distinct) == 1:
+            folded[name] = distinct[0]
+    return folded
 
 
 class ModernIpWare:
@@ -56,18 +122,32 @@ class ModernIpWare:
         proxy_count: Optional[int] = None,
         proxy_list: Optional[list[str]] = None,
     ) -> None:
-        if proxy_count is not None and proxy_count < 0:
-            raise ValueError("proxy_count must be non-negative")
-        if proxy_list is not None and not all(isinstance(p, str) for p in proxy_list):
-            raise ValueError("All elements in the proxy list must be strings.")
+        if proxy_count is not None and (
+            isinstance(proxy_count, bool) or not isinstance(proxy_count, int) or proxy_count < 0
+        ):
+            raise ValueError("proxy_count must be a non-negative integer")
+        # A bare string is iterable and would silently become one prefix per
+        # character ("10.0.0.1" -> "1", "0", ...), trusting almost anything.
+        if isinstance(proxy_list, str) or (
+            proxy_list is not None and not all(isinstance(p, str) for p in proxy_list)
+        ):
+            raise ValueError("proxy_list must be a list of strings.")
         proxy_list = [p.strip() for p in proxy_list or []]
         # An empty prefix matches every address, which would mark any spoofed
         # chain as trusted. It is always a misconfiguration (e.g. a trailing
         # comma in an env var), so fail loudly instead.
         if any(not p for p in proxy_list):
             raise ValueError("proxy_list entries must not be empty.")
+        # proxy_count and proxy_list may both be set and may differ (v3 API):
+        # the count is a hop-count requirement (minimum, or exact when strict)
+        # and the list pins the client position. See _best_from_chain.
+        if isinstance(precedence, str) or (
+            precedence is not None and not all(isinstance(h, str) for h in precedence)
+        ):
+            raise ValueError("precedence must be a sequence of header-name strings.")
 
-        self.precedence = precedence or DEFAULT_PRECEDENCE
+        # Copy, so later changes to the caller's objects cannot leak in.
+        self.precedence = tuple(precedence) if precedence else DEFAULT_PRECEDENCE
         self.leftmost = leftmost
         self.proxy_count = proxy_count
         self.proxy_list = proxy_list
@@ -75,39 +155,26 @@ class ModernIpWare:
 
     # -- meta access --------------------------------------------------------
 
-    @staticmethod
-    def _fold(key: str) -> str:
-        return key.upper().replace("-", "_")
-
-    def _get_meta_value(
-        self,
-        meta: dict[str, str],
-        key: str,
-        folded: Optional[dict[str, object]] = None,
-    ) -> str:
-        meta = meta or {}
-        value = meta.get(key)
-        if value is None:
-            value = meta.get(key.replace("_", "-"))
-        # Exact keys win; the folded view only fills gaps, so lowercase keys
-        # (AWS Lambda / API Gateway v2, raw ASGI dicts) still match.
-        if value is None and folded is not None:
-            value = folded.get(self._fold(key))
-        # Header values are text; anything else (None, bytes, lists from a
-        # misbehaving adapter) is ignored rather than crashing the lookup.
-        return value.strip() if isinstance(value, str) else ""
-
-    def _get_meta_values(self, meta: dict[str, str]) -> list[str]:
-        meta = meta or {}
-        folded: dict[str, object] = {}
-        for k, v in meta.items():
-            if isinstance(k, str):
-                folded.setdefault(self._fold(k), v)
+    def _get_meta_values(self, meta: Optional[Mapping[Any, Any]]) -> list[str]:
+        if meta is None:
+            return []
+        if not isinstance(meta, Mapping):
+            msg = f"meta must be a mapping of header names to values, got {type(meta).__name__}"
+            raise TypeError(msg)
+        folded = _build_folded(meta)
         values: list[str] = []
         for key in self.precedence:
-            value = self._get_meta_value(meta, key, folded)
-            if value:
-                values.append(value)
+            value = meta.get(key)
+            if value is None:
+                value = meta.get(key.replace("_", "-"))
+            # Exact keys win; the folded view only fills gaps, so lowercase
+            # keys (AWS Lambda / API Gateway v2, raw ASGI dicts) still match.
+            if value is None:
+                value = folded.get(_fold(key))
+            # Header values are text; anything else (None, bytes, lists from
+            # a misbehaving adapter) is ignored rather than crashing.
+            if isinstance(value, str) and value.strip():
+                values.append(value.strip())
         return values
 
     # -- validation ---------------------------------------------------------
@@ -157,7 +224,7 @@ class ModernIpWare:
 
     # -- public API ---------------------------------------------------------
 
-    def get_client_ip(self, meta: dict[str, str], strict: bool = False) -> tuple[OptionalIp, bool]:
+    def get_client_ip(self, meta: Optional[Mapping[Any, Any]], strict: bool = False) -> tuple[OptionalIp, bool]:
         # Best non-global candidate so far. Strictly-greater comparison keeps
         # the earliest header on ties, preserving header precedence.
         fallback: OptionalIp = None
