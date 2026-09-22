@@ -10,6 +10,9 @@ from typing import Optional, Union
 
 IpAddressType = Union[ipaddress.IPv4Address, ipaddress.IPv6Address]
 
+# RFC 6052 well-known NAT64 prefix; the low 32 bits are the IPv4 client.
+_NAT64_WKP = ipaddress.IPv6Network("64:ff9b::/96")
+
 # How good an address is as a client IP; higher wins. REJECT is never returned.
 TIER_REJECT = 0
 TIER_LOOPBACK = 1
@@ -25,7 +28,12 @@ def ip_tier(ip: IpAddressType) -> int:
     and the deprecated ``::a.b.c.d`` form as ``is_global``, and ``::1`` as
     ``is_reserved``, so those are resolved before ``is_global`` is trusted.
     Unspecified, multicast, broadcast and reserved addresses can never be a
-    real client and are rejected outright.
+    real client and are rejected outright. NAT64 well-known-prefix addresses
+    never reach here: ``parse_ip`` unwraps them to IPv4 first.
+
+    Global/private classification comes from the running Python's
+    ``ipaddress`` tables, which changed in 3.12 (e.g. 6to4 ``2002::/16`` is
+    global on 3.11 but private on 3.12+).
     """
     if ip.is_unspecified or ip.is_multicast:
         return TIER_REJECT
@@ -96,7 +104,11 @@ def clean_ip(value: Optional[str]) -> str:
 
 
 def parse_ip(value: Optional[str]) -> Optional[IpAddressType]:
-    """Return a validated ip_address object, or None. Unwraps IPv4-mapped IPv6."""
+    """Return a validated ip_address object, or None.
+
+    Unwraps IPv4-mapped IPv6 (``::ffff:a.b.c.d``) and the RFC 6052 NAT64
+    well-known prefix (``64:ff9b::a.b.c.d``) to the embedded IPv4 client.
+    """
     cleaned = clean_ip(value)
     if not cleaned:
         return None
@@ -104,8 +116,11 @@ def parse_ip(value: Optional[str]) -> Optional[IpAddressType]:
         ip = ipaddress.ip_address(cleaned)
     except ValueError:
         return None
-    if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
-        return ip.ipv4_mapped
+    if isinstance(ip, ipaddress.IPv6Address):
+        if ip.ipv4_mapped is not None:
+            return ip.ipv4_mapped
+        if ip in _NAT64_WKP:
+            return ipaddress.IPv4Address(int(ip) & 0xFFFFFFFF)
     return ip
 
 
