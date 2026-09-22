@@ -56,7 +56,7 @@ Changelog = "https://github.com/un33k/python-ipware/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 dev = [
-    "ruff",
+    "ruff==0.16.8",  # pinned so new lint rules cannot break CI unannounced
     "coverage[toml]",
     "build",
     "twine",
@@ -81,6 +81,9 @@ include = [
 [tool.ruff]
 line-length = 120
 target-version = "py39"
+# The legacy engine and its v3 tests are frozen byte-for-byte, so newer lint rules
+# must not force edits there.
+extend-exclude = ["python_ipware/legacy", "tests/legacy"]
 
 [tool.ruff.lint]
 select = [
