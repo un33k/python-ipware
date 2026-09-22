@@ -7,7 +7,11 @@ always toward a better address; use `algorithm="legacy"` for exact v3 results:
   `is_global`, so v3 could return `224.0.0.1` as the client.
 - Without `proxy_count` / `proxy_list`, the first public hop of a chain wins, not only the first hop:
   `10.0.0.1, 177.139.233.139` now yields `177.139.233.139`. With `leftmost=False` the scan runs from the
-  right. With proxy settings, the client position is fixed exactly as before.
+  right. With proxy settings, the client position is fixed exactly as before. Note that the public hop
+  may be an upstream proxy: if you must identify private (intranet / VPN) clients, set `proxy_count` or
+  `proxy_list`.
+- NAT64 well-known-prefix addresses (`64:ff9b::a.b.c.d`, RFC 6052) are unwrapped to the embedded IPv4
+  client, like IPv4-mapped addresses. v3 returned the IPv6 form.
 - `trusted_route` is `True` for any address resolved through a matching proxy config, including private
   clients; v3 reported `False` for them.
 - New exhaustive tests: every 1–3 hop chain over ten address kinds, in every leftmost / strict / proxy
@@ -17,7 +21,8 @@ always toward a better address; use `algorithm="legacy"` for exact v3 results:
 Enhance (modern engine only; legacy is unchanged):
 - Parse RFC 7239 `Forwarded` elements by their `for=` value, including quoted, bracketed IPv6 with a port.
   Previously `Forwarded` never produced an IP, so when it is present it can now resolve at its existing
-  precedence slot. Obfuscated hops (`for=unknown`, `for=_hidden`) count as invalid tokens.
+  precedence slot, which is above the CDN headers. Like `X-Forwarded-For`, a client can send it; behind a
+  CDN, pass an explicit `precedence` naming that CDN's header. Obfuscated hops (`for=unknown`, `for=_hidden`) count as invalid tokens.
 - New default headers, added only between the 4.0.0 entries and `REMOTE_ADDR`, so none outranks a header
   that resolved requests before: Azure Front Door `X-Azure-ClientIP`, DigitalOcean `DO-Connecting-IP`,
   Envoy/Istio `X-Envoy-External-Address`, plus the missing `HTTP_X_CLIENT_IP` and raw `X-AppEngine-User-IP`
