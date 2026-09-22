@@ -64,6 +64,8 @@ jobs:
 
   build:
     name: Build
+    # Only package code whose tests passed on every Python in the matrix.
+    needs: ci
     runs-on: ubuntu-latest
     permissions:
       contents: read
