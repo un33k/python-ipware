@@ -32,7 +32,9 @@ if trusted_route:
     ...
 ```
 
-Python 3.9+ is supported (tested on 3.9 – 3.14). No runtime dependencies.
+Python 3.9+ is supported (tested on 3.9 – 3.14), with no upper version cap. No runtime dependencies.
+On a newer Python that isn't in the test matrix yet? It should just work — if it doesn't,
+[open an issue](https://github.com/un33k/python-ipware/issues) and we'll fix it.
 
 > **Legacy:** the frozen 3.x algorithm is still available with `IpWare(algorithm="legacy")`.
 > See the [legacy guide](https://github.com/un33k/python-ipware/blob/main/python_ipware/legacy/README.md).
