@@ -16,7 +16,11 @@ Modernize:
 
 Note:
 - No source change is required for existing users: `from python_ipware import IpWare` continues to work and
-  now defaults to the modern engine, which is a verified superset of v3 behavior.
+  now defaults to the modern engine. On well-formed headers modern returns the same result as v3 (the full
+  v3 suite and a legacy-vs-modern differential test pass). It differs only on malformed values:
+  - quoted addresses such as `"1.2.3.4"` are accepted (v3 ignored them);
+  - a value with more than one port-like suffix, such as `1.2.3.4:80:90`, is rejected (v3 took `1.2.3.4`).
+  Use `IpWare(algorithm="legacy")` if you depend on the exact v3 handling of those inputs.
 
 ## 3.0.0
 

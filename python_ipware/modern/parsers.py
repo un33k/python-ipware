@@ -55,9 +55,10 @@ def parse_ip(value: Optional[str]) -> Optional[IpAddressType]:
 def split_proxy_chain(raw: Optional[str], strict: bool = False) -> Optional[list[IpAddressType]]:
     """Split a comma-separated proxy chain into ordered ``ip_address`` objects.
 
-    Order is preserved left-to-right (``client, proxy1, proxy2``). In strict
-    mode, a single invalid token makes the whole chain invalid (returns None).
-    Otherwise invalid tokens are skipped.
+    Order is preserved left-to-right as it appears in the header. In strict
+    mode, any invalid or empty token makes the whole chain invalid (returns
+    None), since a malformed header should not be trusted. Otherwise invalid
+    and empty tokens are skipped.
     """
     if not raw:
         return []
@@ -66,7 +67,7 @@ def split_proxy_chain(raw: Optional[str], strict: bool = False) -> Optional[list
         ip = parse_ip(token)
         if ip is not None:
             result.append(ip)
-        elif strict and token.strip():
+        elif strict:
             return None
     return result
 

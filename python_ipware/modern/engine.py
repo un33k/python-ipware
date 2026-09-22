@@ -78,20 +78,14 @@ class ModernIpWare:
     # -- selection ----------------------------------------------------------
 
     def _best_from_chain(self, chain: list[IpAddressType]) -> tuple[OptionalIp, bool]:
+        # ``chain`` is already client-first (see get_client_ip).
         if not chain:
             return None, False
-
-        # Order the chain client-first regardless of leftmost, so indexing is
-        # consistent. XFF is naturally client, proxy1, proxy2 ...
-        ordered = chain if self.leftmost else list(reversed(chain))
-
         if self.proxy_list:
-            idx = len(self.proxy_list) + 1
-            return ordered[-idx], True
+            return chain[-(len(self.proxy_list) + 1)], True
         if self.proxy_count is not None:
-            idx = self.proxy_count + 1
-            return ordered[-idx], True
-        return ordered[0], False
+            return chain[-(self.proxy_count + 1)], True
+        return chain[0], False
 
     # -- public API ---------------------------------------------------------
 
@@ -105,6 +99,10 @@ class ModernIpWare:
             chain = split_proxy_chain(raw, strict)
             if not chain:
                 continue
+            # Put the chain in client-first order ONCE, before any validation, so
+            # the proxy checks and the client pick look at the same end.
+            if not self.leftmost:
+                chain.reverse()
             if not self._proxy_count_valid(chain, strict):
                 continue
             if not self._proxy_list_valid(chain, strict):
