@@ -214,6 +214,20 @@ ipw = IpWare(precedence=("HTTP_CF_CONNECTING_IP", "HTTP_X_FORWARDED_FOR", "REMOT
 
 If your server sits behind known proxies, pass their IPs or prefixes:
 
+Each entry can be (modern engine):
+
+- **a complete IP**, matched exactly: `"198.84.193.157"` never matches `198.84.193.15x`, and IPv6
+  spelling (case, leading zeros) does not matter;
+- **a CIDR network** (IPv4 or IPv6), matched by membership. This is the recommended form for IPv6;
+- **an IP prefix**, matched on whole octets or groups: `"10.1"` and `"10.1."` match `10.1.x.x` but not
+  `10.100.x.x`. IPv6 prefixes compare against the compressed form (`2001:db8::5`), so prefer CIDR.
+
+IPv4-mapped (`::ffff:a.b.c.d`) and NAT64 (`64:ff9b::a.b.c.d`) hops are unwrapped to IPv4 before matching.
+Misconfiguration raises `ValueError` at construction: a bare string instead of a list, empty or
+non-IP entries, an invalid CIDR, or a negative or non-integer `proxy_count`. `proxy_count` and
+`proxy_list` may both be set: the list fixes the client position, and the count is a hop-count
+requirement (a minimum, or exact when `strict=True`).
+
 ```python
 ipw = IpWare(proxy_list=["198.84.193.157"])            # one proxy
 ipw = IpWare(proxy_list=["198.84.193.157", "198.84.193.158"])  # two proxies
