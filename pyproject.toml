@@ -1,64 +1,100 @@
 [build-system]
-requires = [
-    "setuptools>=42",
-    "wheel"
-]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "python-ipware"
+description = "A Python package to retrieve a client's real IP address."
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [
-    {name = "Val Neekman", email = "info@neekware.com"},
+    { name = "Val Neekman", email = "info@neekware.com" },
 ]
-description = "A Python package to retrieve user's IP address"
-requires-python = ">=3.7"
-dynamic = ["version", "readme"]
-license = {text = "MIT"}
+maintainers = [
+    { name = "Val Neekman", email = "info@neekware.com" },
+]
+keywords = [
+    "python",
+    "ip",
+    "ipware",
+    "client ip",
+    "real ip",
+    "remote addr",
+    "x-forwarded-for",
+    "proxy",
+]
+dynamic = ["version"]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "Natural Language :: English",
     "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.7",
-    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
 ]
+dependencies = []
 
 [project.urls]
+Homepage = "https://github.com/un33k/python-ipware"
 Documentation = "https://github.com/un33k/python-ipware#readme"
+Repository = "https://github.com/un33k/python-ipware"
 Issues = "https://github.com/un33k/python-ipware/issues"
-Source = "https://github.com/un33k/python-ipware"
 Changelog = "https://github.com/un33k/python-ipware/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
+# Lint + tests only: installs cleanly on every interpreter, including PyPy.
+test = [
+    "ruff==0.16.8",  # pinned so new lint rules cannot break CI unannounced
+    "coverage[toml]",
+]
+# Full maintainer toolchain (adds packaging tools, whose deps don't build on PyPy).
 dev = [
-  "ruff",
-  "coveralls~=3.3",
-  "coverage[toml]",
-  "twine"
+    "python-ipware[test]",
+    "build",
+    "twine",
 ]
 
-[tool.setuptools]
+[tool.hatch.version]
+path = "python_ipware/__version__.py"
+
+[tool.hatch.build.targets.wheel]
 packages = ["python_ipware"]
 
-[tool.setuptools.dynamic]
-version = {attr = "python_ipware.__version__"}
-readme = {file = ["README.md"], content-type = "text/markdown"}
-
-[tool.setuptools.package-data]
-"python_ipware" = ["py.typed"]
+[tool.hatch.build.targets.sdist]
+include = [
+    "python_ipware",
+    "tests",
+    "README.md",
+    "CHANGELOG.md",
+    "SECURITY.md",
+    "LICENSE",
+]
 
 [tool.ruff]
+line-length = 120
+target-version = "py39"
+# The legacy engine and its v3 tests are frozen byte-for-byte, so newer lint rules
+# must not force edits there.
+extend-exclude = ["python_ipware/legacy", "tests/legacy"]
+
+[tool.ruff.lint]
 select = [
     "B",
     "C4",
     "C9",
-    "DJ",
     "E",
     "EM",
     "F",
@@ -78,13 +114,13 @@ select = [
     "W",
 ]
 ignore = ["PGH004", "TID252", "E501", "I001", "EM101", "SIM108", "SIM110"]
-line-length = 120
-target-version = "py37"
 
-[tool.ruff.mccabe]
+[tool.ruff.lint.mccabe]
 max-complexity = 16
 
 [tool.coverage.run]
-omit = [
-    "python_ipware/__version__.py"
-]
+source = ["python_ipware"]
+omit = ["python_ipware/__version__.py"]
+
+[tool.coverage.report]
+show_missing = true

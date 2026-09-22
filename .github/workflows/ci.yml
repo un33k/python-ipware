@@ -13,51 +13,75 @@ on:
       - ci
       - dev
       - main
+  workflow_dispatch:
 
 jobs:
   ci:
     name: Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        python-version: [3.7, 3.8, 3.9, "3.10", 3.11, 3.12, pypy3.9]
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14", "pypy3.10"]
 
     steps:
-      - uses: actions/checkout@v3
-      - name: setup python
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v5
+      - name: Set up Python
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
           cache: "pip"
+          cache-dependency-path: pyproject.toml
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e .[dev]
+          pip install -e ".[test]" coveralls
       - name: Run ruff
         run: ruff check .
-      - name: Run test
-        run: coverage run --source=python_ipware -m unittest discover
+      - name: Run tests (modern default + router)
+        run: coverage run -m unittest discover -s tests -p "tests_*.py"
+      - name: Run frozen v3 tests against the legacy engine
+        run: python -m tests.legacy.run_against_legacy
       - name: Coveralls
+        # Coverage upload is informational; a Coveralls outage must not fail CI.
+        continue-on-error: true
         run: coveralls --service=github
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COVERALLS_FLAG_NAME: python-${{ matrix.python-version }}
+          COVERALLS_PARALLEL: true
+
+  coveralls-finish:
+    name: Coveralls finish
+    needs: ci
+    runs-on: ubuntu-latest
+    steps:
+      - name: Finish parallel coverage
+        uses: coverallsapp/github-action@v2
+        with:
+          parallel-finished: true
+          fail-on-error: false
+
   build:
     name: Build
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
-      - name: Set up Python 3.10
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v5
+      - name: Set up Python
+        uses: actions/setup-python@v6
         with:
-          python-version: '3.10'
-          cache: 'pip'
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: pyproject.toml
       - name: Install build tools
-        run: pip3 --quiet install --upgrade build wheel
+        run: python -m pip install --upgrade build twine
       - name: Build
-        run: python3 -m build .
-      - uses: actions/upload-artifact@v3
+        run: python -m build
+      - name: Check distribution metadata
+        run: python -m twine check dist/*
+      - uses: actions/upload-artifact@v4
         with:
           name: artifacts
           path: dist/*
@@ -69,14 +93,14 @@ jobs:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
-      id-token: write  # IMPORTANT: mandatory for trusted publishing
+      id-token: write # mandatory for trusted publishing
     needs:
       - build
       - ci
     steps:
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: artifacts
           path: dist
       - name: Publish build to PyPI
-        uses: pypa/gh-action-pypi-publish@v1.8.10
+        uses: pypa/gh-action-pypi-publish@release/v1
