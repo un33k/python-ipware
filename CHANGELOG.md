@@ -1,3 +1,41 @@
+## 4.1.0
+
+Best match (modern engine only; legacy is unchanged). Results can differ from 4.0.0 on well-formed input,
+always toward a better address; use `algorithm="legacy"` for exact v3 results:
+- Addresses are ranked public > private > link-local > loopback. Unspecified (`0.0.0.0`, `::`),
+  multicast, broadcast, and reserved addresses are never returned. Python reports multicast as
+  `is_global`, so v3 could return `224.0.0.1` as the client.
+- Without `proxy_count` / `proxy_list`, the first public hop of a chain wins, not only the first hop:
+  `10.0.0.1, 177.139.233.139` now yields `177.139.233.139`. With `leftmost=False` the scan runs from the
+  right. With proxy settings, the client position is fixed exactly as before.
+- `trusted_route` is `True` for any address resolved through a matching proxy config, including private
+  clients; v3 reported `False` for them.
+- New exhaustive tests: every 1–3 hop chain over ten address kinds, in every leftmost / strict / proxy
+  configuration, checked against an independent reference model; every header assignment and dict order;
+  every spelling of a hop; never-worse-than-legacy across the whole matrix; seeded fuzzing.
+
+Enhance (modern engine only; legacy is unchanged):
+- Parse RFC 7239 `Forwarded` elements by their `for=` value, including quoted, bracketed IPv6 with a port.
+  Previously `Forwarded` never produced an IP, so when it is present it can now resolve at its existing
+  precedence slot. Obfuscated hops (`for=unknown`, `for=_hidden`) count as invalid tokens.
+- New default headers, added only between the 4.0.0 entries and `REMOTE_ADDR`, so none outranks a header
+  that resolved requests before: Azure Front Door `X-Azure-ClientIP`, DigitalOcean `DO-Connecting-IP`,
+  Envoy/Istio `X-Envoy-External-Address`, plus the missing `HTTP_X_CLIENT_IP` and raw `X-AppEngine-User-IP`
+  forms of headers already on the list.
+- Header names match case-insensitively (`-` and `_` equivalent), so lowercase keys such as AWS Lambda's
+  work. Exact keys still take priority.
+
+Harden (modern engine only):
+- Reject malformed tokens instead of truncating them: unclosed brackets (`[::1`), text after a bracket
+  (`[::1]junk`), and non-numeric, empty, or out-of-range ports (`1.2.3.4:abc`, `1.2.3.4:70000`). Note v3
+  accepted `1.2.3.4:abc` as `1.2.3.4`.
+- Non-string header values (`None`, bytes) are skipped instead of raising `AttributeError`.
+- `proxy_list` entries are stripped of whitespace. An empty entry now raises `ValueError`: it used to match
+  every address and mark any spoofed chain as trusted.
+
+CI:
+- Bump `actions/upload-artifact` to v7 and `actions/download-artifact` to v8, which run on Node 24.
+
 ## 4.0.0
 
 Community (thank you!):

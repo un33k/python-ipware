@@ -7,11 +7,13 @@ python-ipware 4.x ships two engines:
 
 The ``algorithm`` selector chooses between them. ``"auto"`` (the default) is a
 clean alias for ``"modern"`` — the enhanced engine is where development moves
-forward. On well-formed headers it returns the same result as v3 (the full v3
-suite and a legacy-vs-modern differential test pass); it differs only on
-malformed values, as documented in the CHANGELOG. ``legacy`` remains available as an explicit
-escape hatch for projects that need byte-for-byte v3 behavior. There is no
-silent runtime fallback, so behavior stays predictable.
+forward. It passes the full v3 suite, and a differential test checks it never
+returns a worse address than v3. It picks better where v3 did not: a public
+hop behind a private first hop, no multicast / unspecified results, and
+``trusted_route`` for private clients behind trusted proxies (see CHANGELOG).
+``legacy`` remains available as an explicit escape hatch for projects that
+need byte-for-byte v3 behavior. There is no silent runtime fallback, so
+behavior stays predictable.
 
     from python_ipware import IpWare
 
