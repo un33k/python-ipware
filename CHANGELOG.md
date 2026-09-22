@@ -28,7 +28,9 @@ Enhance (modern engine only; legacy is unchanged):
   Envoy/Istio `X-Envoy-External-Address`, plus the missing `HTTP_X_CLIENT_IP` and raw `X-AppEngine-User-IP`
   forms of headers already on the list.
 - Header names match case-insensitively (`-` and `_` equivalent), so lowercase keys such as AWS Lambda's
-  work. Exact keys still take priority.
+  work. Exact keys still take priority. When several spellings fold to the same header, the dash spelling
+  wins, whatever the dict order, so a client-sent `x_forwarded_for` cannot shadow the proxy's
+  `x-forwarded-for`. Dash spellings that disagree are treated as absent.
 
 Harden (modern engine only):
 - Reject malformed tokens instead of truncating them: unclosed brackets (`[::1`), text after a bracket
@@ -37,6 +39,23 @@ Harden (modern engine only):
 - Non-string header values (`None`, bytes) are skipped instead of raising `AttributeError`.
 - `proxy_list` entries are stripped of whitespace. An empty entry now raises `ValueError`: it used to match
   every address and mark any spoofed chain as trusted.
+- Trusted-proxy matching is tighter. A complete IP entry is matched exactly: v3 prefix-matched it, so
+  `"1.2.3.4"` also trusted `1.2.3.45`, letting that host forge the client IP. Prefixes match on whole
+  octets or groups (`"10.1"` matches `10.1.x.x`, not `10.100.x.x`). IPv6 entries are case- and
+  zero-insensitive. An entry ending in `:` stays a prefix, so `"2001:db8::"` behaves as in 4.0.0.
+  IPv4-mapped and NAT64 CIDR entries (`::ffff:10.0.0.0/104`) match the unwrapped IPv4 hops.
+- Configuration errors raise `ValueError` at construction instead of misbehaving silently: `proxy_list`
+  or `precedence` passed as a bare string (each character became an entry), a non-IP `proxy_list` entry
+  such as `"foo"`, or a `proxy_count` that is a bool, a float, or a string. `precedence` and `proxy_list`
+  are copied, so later changes to the caller's lists have no effect.
+- A `meta` that is not a mapping raises `TypeError` with a clear message. Non-string keys are skipped.
+- RFC 7239 `Forwarded` parsing is quote-aware: a `,` or `;` inside a quoted value no longer splits a hop,
+  so `ext="x,8.8.8.8"` cannot smuggle in a fake address or a fake proxy hop.
+- More address classes: `0.0.0.0/8` is never returned. Deprecated site-local `fec0::/10` ranks as
+  private, since Python reports it as global. RFC 8215 local-use NAT64 `64:ff9b:1::/48` ranks as private,
+  since Python reports it as reserved.
+- The unused `is_valid_ip` helper was removed from `python_ipware.modern.parsers`. It was never exported.
+- Test suite: 100% line and branch coverage of the modern engine.
 
 CI:
 - Bump `actions/upload-artifact` to v7 and `actions/download-artifact` to v8, which run on Node 24.

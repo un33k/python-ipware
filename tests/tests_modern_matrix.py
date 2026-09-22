@@ -57,10 +57,15 @@ CONFIGS = (
     (0, None),
     (1, None),
     (2, None),
-    (None, ["198.84.193.157"]),
-    (None, ["198.84."]),
-    (None, ["10.0.0.0/8"]),
-    (1, ["198.84.193.157"]),
+    (None, ["198.84.193.157"]),  # exact IPv4
+    (None, ["198.84."]),  # IPv4 prefix
+    (None, ["198.84"]),  # IPv4 prefix without trailing dot (octet boundary)
+    (None, ["10.0.0.0/8"]),  # IPv4 CIDR
+    (None, ["2606:4700::6810:84E5"]),  # exact IPv6, non-canonical case
+    (None, ["fd00::/8"]),  # IPv6 CIDR
+    (None, ["198.84.193.157", "10.0.0.0/8"]),  # two trusted hops
+    (1, ["198.84.193.157"]),  # count and list agree
+    (2, ["198.84."]),  # count and list differ: list pins, count is a minimum
 )
 
 
@@ -70,11 +75,19 @@ def _chains(max_len: int = 3):
 
 
 def _proxy_ok(address: str, pattern: str) -> bool:
+    """Spec for one proxy_list entry, written independently of the engine."""
     ip = ipaddress.ip_address(address)
     if "/" in pattern:
         net = ipaddress.ip_network(pattern, strict=False)
         return ip.version == net.version and ip in net
-    return address.startswith(pattern)
+    try:
+        return ip == ipaddress.ip_address(pattern)  # a complete IP is exact
+    except ValueError:
+        pass
+    # An IPv4 prefix names leading octets; a partial last octet is not allowed.
+    want = pattern.rstrip(".").split(".")
+    have = address.split(".")
+    return ip.version == 4 and have[: len(want)] == want
 
 
 def _oracle(raw_values, leftmost, proxy_count, proxy_list, strict):
