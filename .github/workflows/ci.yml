@@ -106,3 +106,6 @@ jobs:
           path: dist
       - name: Publish build to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          # A version already on PyPI (e.g. uploaded manually) is not an error.
+          skip-existing: true

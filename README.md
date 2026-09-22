@@ -91,7 +91,7 @@ ip, trusted_route = ipw.get_client_ip(meta, strict=False)
 | `precedence` | Header keys to search, top to bottom. Defaults to the list below. |
 | `leftmost` | `True` (default) follows the de-facto `client, proxy1, proxy2` order. Use `False` only for networks that put the client right-most. |
 | `proxy_count` | Number of proxies expected after the client. `0` is valid; `None` disables the check. |
-| `proxy_list` | Trusted proxies nearest your server, one entry per hop. Each entry is a CIDR network (`"100.64.0.0/10"`, `"fd7a:115c:a1e0::/48"`) or a plain IP prefix (`"10.1."`, `"198.84.193.157"`). |
+| `proxy_list` | Trusted proxies nearest your server, one entry per hop. Each entry is a CIDR network (`"100.64.0.0/10"`, `"fd7a:115c:a1e0::/48"`), a complete IP matched exactly (`"198.84.193.157"`), or an IP prefix matched on whole octets (`"10.1."`). See [Trusted proxies](#trusted-proxies). |
 | `strict` | `False`: at least `proxy_count` / `proxy_list` proxies. `True`: exactly that many — extra or invalid entries reject the header. |
 
 | Output | Description |
