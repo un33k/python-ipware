@@ -11,7 +11,7 @@ Enhance:
 
 Modernize:
 - Migrate packaging to PEP 621 with the Hatchling build backend; version is read from `__version__.py`.
-- Drop end-of-life Python 3.7 / 3.8; supported range is now 3.9–3.13.
+- Drop end-of-life Python 3.7 / 3.8; requires Python 3.9+, tested on 3.9–3.14.
 - Bump ruff config to the `lint.*` table layout.
 
 Note:

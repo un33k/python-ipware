@@ -32,7 +32,7 @@ if trusted_route:
     ...
 ```
 
-Python 3.9 – 3.13 is supported. No runtime dependencies.
+Python 3.9+ is supported (tested on 3.9 – 3.14). No runtime dependencies.
 
 > **Legacy:** the frozen 3.x algorithm is still available with `IpWare(algorithm="legacy")`.
 > See the [legacy guide](https://github.com/un33k/python-ipware/blob/main/python_ipware/legacy/README.md).
