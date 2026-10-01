@@ -1,3 +1,11 @@
+## 4.1.1
+
+Reported privately by David Gilman.
+
+Harden (modern engine only; legacy is unchanged):
+- A port longer than five significant digits is rejected, same as port `99999`, instead of calling `int()` on an unbounded digit string. A client-controlled header of about 4.3 KB could otherwise make `get_client_ip()` raise `ValueError` (Python's `int` string-digit limit). Zero-padded ports such as `000080` are still accepted.
+- IPv6 zone ids longer than 255 characters are rejected. RFC 4007 sets no maximum; 255 matches the longest common OS interface-name limit so a multi-kilobyte scope is not returned, logged, or stored. The legacy engine still accepts any length.
+
 ## 4.1.0
 
 Best match (modern engine only; legacy is unchanged). Results can differ from 4.0.0 on well-formed input,

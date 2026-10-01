@@ -223,6 +223,78 @@ class TestModernMalformedRejected(unittest.TestCase):
                 self.assertEqual(str(ip), expected)
 
 
+class TestLongPort(unittest.TestCase):
+    """A huge port must be rejected, never raise from int()."""
+
+    def test_long_port_is_rejected_not_raised(self):
+        port = "1" * 5000
+        metas = (
+            {"HTTP_X_FORWARDED_FOR": f"1.2.3.4:{port}"},
+            {"HTTP_X_FORWARDED_FOR": f"[2001:db8::1]:{port}"},
+            {"HTTP_X_FORWARDED_FOR": f":{port}"},
+            {"HTTP_X_FORWARDED_FOR": f"junk:{port}"},
+            {"HTTP_CLIENT_IP": f"1.2.3.4:{port}"},
+            {"HTTP_FORWARDED": f'for="1.2.3.4:{port}"'},
+            {"HTTP_FORWARDED": f'for="[2001:db8::1]:{port}"'},
+            {"REMOTE_ADDR": f"1.2.3.4:{port}"},
+            {"x-forwarded-for": f"1.2.3.4:{port}"},
+        )
+        for meta in metas:
+            for strict in (False, True):
+                with self.subTest(meta=list(meta), strict=strict):
+                    self.assertEqual(IpWare().get_client_ip(meta, strict), (None, False))
+
+    def test_long_port_on_a_later_hop_is_skipped(self):
+        port = "1" * 5000
+        meta = {"HTTP_X_FORWARDED_FOR": f"8.8.8.8, 1.2.3.4:{port}"}
+        ip, trusted = IpWare().get_client_ip(meta)
+        self.assertEqual((str(ip), trusted), ("8.8.8.8", False))
+        self.assertEqual(IpWare().get_client_ip(meta, strict=True), (None, False))
+
+    def test_long_port_with_proxy_options_does_not_raise(self):
+        meta = {"HTTP_X_FORWARDED_FOR": "1.2.3.4:" + "1" * 5000}
+        self.assertEqual(IpWare(proxy_count=1).get_client_ip(meta), (None, False))
+        self.assertEqual(
+            IpWare(proxy_list=["10.0.0.1"]).get_client_ip(meta),
+            (None, False),
+        )
+
+    def test_long_zero_padded_port_is_accepted(self):
+        meta = {"HTTP_X_FORWARDED_FOR": "1.2.3.4:" + "0" * 5000 + "80"}
+        ip, trusted = IpWare().get_client_ip(meta)
+        self.assertEqual(str(ip), "1.2.3.4")
+        self.assertFalse(trusted)
+
+    def test_zero_padded_and_boundary_ports(self):
+        accepted = ("1.2.3.4:000080", "1.2.3.4:65535", "1.2.3.4:0", "[2001:db8::1]:000443")
+        for value in accepted:
+            with self.subTest(value=value):
+                ip, _ = IpWare().get_client_ip({"REMOTE_ADDR": value})
+                self.assertIsNotNone(ip)
+        rejected = ("1.2.3.4:65536", "1.2.3.4:00065536", "1.2.3.4:" + "9" * 4300)
+        for value in rejected:
+            with self.subTest(value=value[:24]):
+                self.assertEqual(IpWare().get_client_ip({"REMOTE_ADDR": value}), (None, False))
+
+
+class TestZoneIdLength(unittest.TestCase):
+    def test_ordinary_zone_id_is_kept(self):
+        ip, _ = IpWare().get_client_ip({"REMOTE_ADDR": "fe80::1%eth0"})
+        self.assertEqual(str(ip), "fe80::1%eth0")
+
+    def test_zone_id_at_cap_is_kept(self):
+        zone = "z" * 255
+        ip, _ = IpWare().get_client_ip({"REMOTE_ADDR": f"fe80::1%{zone}"})
+        self.assertEqual(str(ip), f"fe80::1%{zone}")
+
+    def test_oversized_zone_id_is_rejected(self):
+        zone = "x" * 5000
+        meta = {"HTTP_X_FORWARDED_FOR": f"2606:4700::1111%{zone}"}
+        self.assertEqual(IpWare().get_client_ip(meta), (None, False))
+        bracketed = {"REMOTE_ADDR": f"[fe80::1%{zone}]:80"}
+        self.assertEqual(IpWare().get_client_ip(bracketed), (None, False))
+
+
 class TestModernMetaHardening(unittest.TestCase):
     def test_non_string_values_are_ignored(self):
         for bad in (None, b"1.2.3.4", ["1.2.3.4"], 42):
