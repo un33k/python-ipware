@@ -20,6 +20,11 @@ _NAT64_LOCAL = ipaddress.IPv6Network("64:ff9b:1::/48")
 _IPV4_MAPPED = ipaddress.IPv6Network("::ffff:0:0/96")
 # RFC 1122 "this network": never a valid source address.
 _THIS_NETWORK = ipaddress.IPv4Network("0.0.0.0/8")
+# RFC 4007 sets no maximum zone-id length. RFC 9844 §6 asks implementations to
+# apply one, typically the OS interface-name limit (15 on Linux, up to 255 on
+# Windows). 255 stops a multi-kilobyte scope from being logged or stored
+# without rejecting a real interface name.
+_MAX_ZONE_ID_LEN = 255
 
 # How good an address is as a client IP; higher wins. REJECT is never returned.
 TIER_REJECT = 0
@@ -65,7 +70,22 @@ def ip_tier(ip: IpAddressType) -> int:
 
 def _is_port(value: str) -> bool:
     # isascii() guards against Unicode digits such as "²" that isdigit() accepts.
-    return value.isascii() and value.isdigit() and int(value) <= 65535
+    if not (value.isascii() and value.isdigit()):
+        return False
+    # Strip leading zeros, then bound the length before int(): a long digit
+    # string would otherwise exceed sys.get_int_max_str_digits() and raise.
+    digits = value.lstrip("0")
+    return len(digits) <= 5 and int(digits or "0") <= 65535
+
+
+def _zone_id_ok(value: str) -> bool:
+    """False when an IPv6 zone id is longer than ``_MAX_ZONE_ID_LEN``.
+
+    A missing ``%`` is fine. An empty zone (``fe80::1%``) is left to
+    ``ipaddress``, which already rejects it.
+    """
+    _host, sep, zone = value.partition("%")
+    return not sep or len(zone) <= _MAX_ZONE_ID_LEN
 
 
 def strip_port(value: str) -> str:
@@ -155,7 +175,7 @@ def parse_ip(value: Optional[str]) -> Optional[IpAddressType]:
     well-known prefix (``64:ff9b::a.b.c.d``) to the embedded IPv4 client.
     """
     cleaned = clean_ip(value)
-    if not cleaned:
+    if not cleaned or not _zone_id_ok(cleaned):
         return None
     try:
         return unwrap_ipv4(ipaddress.ip_address(cleaned))
