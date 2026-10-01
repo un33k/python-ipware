@@ -1,6 +1,6 @@
 ## 4.1.1
 
-Reported privately by David Gilman ([@dgilman](https://github.com/dgilman)).
+Reported privately by David Gilman.
 
 Harden (modern engine only; legacy is unchanged):
 - A port longer than five significant digits is rejected, same as port `99999`, instead of calling `int()` on an unbounded digit string. A client-controlled header of about 4.3 KB could otherwise make `get_client_ip()` raise `ValueError` (Python's `int` string-digit limit). Zero-padded ports such as `000080` are still accepted.
