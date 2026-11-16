@@ -316,7 +316,7 @@ backward compatibility; all improvements target the modern engine. Need support?
 
 ## Sponsors
 
-[Neekware Inc.](https://neekware.com) — creator of [Dojo Workspace](https://heydojo.ai), your AI workspace for building, learning, and getting things done.
+[HeyDojo AI](https://heydojo.ai) — creator of [Dojo Workspace](https://heydojo.ai), your AI workspace for building, learning, and getting things done.
 
 🚀 Created with [Dojo](https://heydojo.ai) ⛩️
 
